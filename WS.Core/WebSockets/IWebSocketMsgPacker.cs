@@ -2,6 +2,7 @@
 
 public interface IWebSocketMsgPacker
 {
-    (int id, int sid, object msg, bool succeed) Decode(byte[] unpack);
-    byte[] Encode(int id, int sid, object msg);
+    (int id, int sid, object msg, bool succeed) Decode(ArraySegment<byte> buffers);
+    ArraySegment<byte> Encode(int id, int sid, object msg);
+    void Release(ArraySegment<byte> bytes);
 }

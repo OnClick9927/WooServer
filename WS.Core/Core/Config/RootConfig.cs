@@ -1,19 +1,25 @@
 ﻿namespace WS.Core.Config;
 
+
+
+
+
 public class RootConfig
 {
-    public ServerType ServerType { get; set; }
+    public int ServerIndex { get; set; }
 
-    public List<ServerConfig> cfgs { get; set; }
+    public List<ServerConfig> Servers { get; set; } = new List<ServerConfig>();
 
-    private ServerConfig _current;
-    public ServerConfig Current
+    public WebSocketConfig WebSocket { get; set; } = new WebSocketConfig();
+
+    public LogConfig Log { get; set; } = new LogConfig();
+
+    public ServerConfig Current => Servers[ServerIndex];
+
+
+    public List<ServerConfig> FindServers(ServerType type)
     {
-        get
-        {
-            if (_current == null)
-                _current = cfgs.FirstOrDefault(x => x.type == ServerType);
-            return _current;
-        }
+        return Servers.Where(x => x.Type == type).ToList();
     }
+ 
 }

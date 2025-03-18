@@ -21,59 +21,9 @@ class Startup : IApplicationStartup
     {
         this.root = root;
     }
-
-    async void IApplicationStartup.BeforeRun(WebApplication web_application)
-    {
-        var logger = LogTools.CreateLogger<Startup>();
-
-        await Task.Delay(10);
-        logger.LogInformation("---进入APP------------------------------");
-        Enter();
-        await web_application.WaitForShutdownAsync();
-        logger.LogInformation("---ShutDown------------------------------");
-        ShutDown();
-    }
-    public void ShutDown()
-    {
-
-    }
-    public async void Enter()
-    {
-        ILogger logger = LogTools.CreateLogger(typeof(Startup));
-        //logger.LogWarning($"snow flake Test {IDTools.NewId()}");
-        //Context.UseScheduler(scheduler =>
-        //{
-        //    scheduler.Schedule(
-        //        () => logger.LogError("Every minute during the week.")
-        //    )
-        //    .EverySecond()
-        //    .Weekday();
-
-
-        //    //scheduler.Schedule(
-        //    //    () => Console.WriteLine("Every ten.")
-        //    //)
-        //    //.EveryTenSeconds()
-        //    //.Weekday();
-        //});
-        await Task.Delay(1000);
-        var result = await RPC.RPCCreateTodo(new TodoItemDTO()
-        {
-            Name = "zz",
-            IsComplete = false
-
-        }, 100);
-        logger.LogInformation(result.ToString());
-    }
-
-    void IApplicationStartup.BeforeBuildWebApplication()
-    {
-
-    }
-
     public static void ConfigDB(IServiceCollection services)
     {
-        DBServiceTool.AddDBContexts(services, (builder,Type) =>
+        DBServiceTool.AddDBContexts(services, (builder, Type) =>
         {
             //config?.Invoke(builder, typeof(TodoDbContext));
             string dir = $"{AppContext.BaseDirectory}/databases";
@@ -92,15 +42,40 @@ class Startup : IApplicationStartup
 
         //}, ServiceLifetime.Singleton);
     }
-    void IApplicationStartup.ConfigServices(IServiceCollection services)
+    void IApplicationStartup.ConfigApplicationServices(IServiceCollection services)
     {
         ConfigDB(services);
     }
-
-    public void FitConfigTypes(List<Type> serviceTypes, List<Type> configTypes)
+    async void IApplicationStartup.ConfigApplication(WebApplication web_application)
     {
-        //serviceTypes.Clear();
-        //configTypes.Clear(); 
-        //tools.Clear();
+        var logger = LogTools.CreateLogger<Startup>();
+
+        await Task.Delay(10);
+        logger.LogInformation("---进入APP------------------------------");
+        Enter();
+        await web_application.WaitForShutdownAsync();
+        logger.LogInformation("---ShutDown------------------------------");
+        ShutDown();
     }
+     void ShutDown()
+    {
+
+    }
+     async void Enter()
+    {
+        ILogger logger = LogTools.CreateLogger(typeof(Startup));
+        logger.LogWarning($"snow flake Test {IDTools.NewId()}");
+        await Task.Delay(1000);
+        var result = await RPC.RPCCreateTodo(new TodoItemDTO()
+        {
+            Name = "zz",
+            IsComplete = false
+
+        }, 100);
+        logger.LogInformation(result.ToString());
+    }
+
+
+
+
 }

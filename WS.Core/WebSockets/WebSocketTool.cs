@@ -10,8 +10,13 @@ class WebSocketTool
     private static Dictionary<Type, Delegate> msg_handlers;
     private static ILogger logger = LogTools.CreateLogger<WebSocketTool>();
 
-    private static IWebSocketMsgPacker? Packer;
-    private static IWebSocketTokenCollection? tokenCollection;
+    //private static IWebSocketMsgPacker? Packer;
+    //private static IWebSocketTokenCollection? tokenCollection;
+
+    internal static IWebSocketMsgPacker CreateMsagPacker()
+    {
+        return Context.Services.GetRequiredService<IWebSocketMsgPacker>();
+    }
     public static IWebSocketBinaryQueue? CreateNewBinaryQueue(int size)
     {
         var queue = Context.Services.GetRequiredService<IWebSocketBinaryQueue>();
@@ -24,6 +29,12 @@ class WebSocketTool
         queue?.Init(size);
         return queue;
     }
+
+
+    public static IWebSocketTokenCollection GetWebSocketTokenCollection() => Context.Services.GetRequiredService<IWebSocketTokenCollection>();
+
+
+
     public static void ExecuteMsg(WebSocketToken token, int id, int sid, object msg)
     {
         var msgType = msg.GetType();
@@ -37,42 +48,41 @@ class WebSocketTool
             logger.LogCritical($"Not Find Handler id{id}:sid:{sid}msg:{msgType}");
         }
     }
-    public static bool Init(IServiceProvider services)
+    public static bool CreateMessageHandlers(IServiceProvider services)
     {
-        msg_handlers = TypeTools.GetTypesWithAttribute(typeof(WebSocketHandlerAttribute), false)
-            .Select(x => services.GetService(x))
-           .SelectMany(ins =>
-           {
-               return ins.GetType().GetMethods().Where(x =>
-                 x.IsDefined(typeof(WebSocketMethodAttribute), false))
-                 .Where(x =>
-                 {
-                     var ps = x.GetParameters();
-                     return ps.Length == 4
-                               && ps[0].ParameterType == typeof(WebSocketToken)
-                               && ps[1].ParameterType == typeof(int)
-                               && ps[2].ParameterType == typeof(int);
-                 })
-                 .Select(
-                     method =>
+        try
+        {
+            msg_handlers = TypeTools.GetTypesWithAttribute(typeof(WebSocketHandlerAttribute), false)
+                .Select(x => services.GetService(x))
+               .SelectMany(ins =>
+               {
+                   return ins.GetType().GetMethods()
+                     .Where(x =>
                      {
-                         var del = method.ToDelegate(ins);
-                         var type = del.GetType();
-                         var arguments = type.GetGenericArguments().Last();
-                         return new { arguments, del };
+                         var ps = x.GetParameters();
+                         return ps.Length == 4
+                                   && ps[0].ParameterType == typeof(WebSocketToken)
+                                   && ps[1].ParameterType == typeof(int)
+                                   && ps[2].ParameterType == typeof(int);
+                     })
+                     .Select(
+                         method =>
+                         {
+                             var del = method.ToDelegate(ins);
+                             var type = del.GetType();
+                             var arguments = type.GetGenericArguments().Last();
+                             return new { arguments, del };
+                         }
+                     );
+               })
+               .ToDictionary(x => x.arguments, y => y.del);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
 
-                     }
-                 );
-           })
-           .ToDictionary(x => x.arguments, y => y.del);
-        tokenCollection = services.GetRequiredService<IWebSocketTokenCollection>();
-        Packer = services.GetRequiredService<IWebSocketMsgPacker>();
-
-
-
-
-
-        return !(tokenCollection == null || Packer == null);
     }
     static Type tokenCollectionType, packerType, queueType_Binary_Type, queueType_Text_Type;
     internal static bool ConfigService(IServiceCollection services)
@@ -83,7 +93,7 @@ class WebSocketTool
         queueType_Text_Type = typeof(IWebSocketTextQueue).GetSubTypes().Single();
 
         services.AddSingleton(typeof(IWebSocketTokenCollection), tokenCollectionType);
-        services.AddSingleton(typeof(IWebSocketMsgPacker), packerType);
+        services.AddTransient(typeof(IWebSocketMsgPacker), packerType);
         services.AddTransient(typeof(IWebSocketBinaryQueue), queueType_Binary_Type);
         services.AddTransient(typeof(IWebSocketTextQueue), queueType_Text_Type);
 
@@ -97,17 +107,18 @@ class WebSocketTool
 
     }
 
-    public static (int id, int sid, object msg, bool succeed) Decode(byte[] unpack) => Packer.Decode(unpack);
-    public static byte[]? Encode(int id, int sid, object msg) => Packer?.Encode(id, sid, msg);
-
-
     public static void RefreshToken(WebSocketToken token)
     {
-        tokenCollection?.Refresh(token, DateTime.Now);
+        token.LastTime = DateTime.Now;
+        GetWebSocketTokenCollection().Refresh(token, DateTime.Now);
+    }
+    public static IEnumerable<WebSocketToken> GetTokens()
+    {
+        return GetWebSocketTokenCollection().GetTokens();
     }
     public static void RemoveToken(WebSocketToken token)
     {
-        tokenCollection?.Remove(token);
+        GetWebSocketTokenCollection().Remove(token);
 
     }
 

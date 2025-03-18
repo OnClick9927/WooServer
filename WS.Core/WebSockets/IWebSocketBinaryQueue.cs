@@ -4,5 +4,5 @@ public interface IWebSocketBinaryQueue
 {
     void OnBinaryMessage(byte[] buffer, int offset, int len);
     void Init(int size);
-    byte[] Unpack();
+    ArraySegment<byte> Unpack();
 }

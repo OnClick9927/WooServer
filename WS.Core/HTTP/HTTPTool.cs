@@ -14,10 +14,19 @@ public static class HTTPTool
     public class HttpPostResult<T>
     {
         public bool Success { get; set; }
-        public string Content { get; set; }
+        public string? Content { get; set; }
         public HttpStatusCode Code { get; set; }
         public string? ReasonPhrase { get; set; }
-        public T Result { get; set; }
+        public T? Result { get; set; }
+
+
+        public static HttpPostResult<T> Empty { get; private set; } = new HttpPostResult<T>()
+        {
+
+            Success = false,
+            Code = HttpStatusCode.NotFound,
+
+        };
     }
 
     private static RootConfig rootCfg => Context.config.Value;
@@ -25,7 +34,7 @@ public static class HTTPTool
     private static Dictionary<Type, ServerType> service_type_map = new Dictionary<Type, ServerType>();
     static Dictionary<Type, Dictionary<string, string>> Rpcmap = new Dictionary<Type, Dictionary<string, string>>();
 
-    public static async Task<HttpPostResult<T>> HTTPPost<T>(string url, Dictionary<string, object> headers = null)
+    public static async Task<HttpPostResult<T>> HTTPPost<T>(string url, Dictionary<string, object>? headers = null)
     {
         var result = new HttpPostResult<T>();
         using (HttpClient client = new HttpClient())
@@ -60,10 +69,19 @@ public static class HTTPTool
 
     }
 
-    public static async Task<HttpPostResult<T>> RpcHTTPPost<T>(Type type, string method, Dictionary<string, object> headers = null)
+    public static async Task<HttpPostResult<T>> RpcHTTPPost<T>(Type type, string method, Dictionary<string, object>? headers = null)
     {
-        ServerConfig? find = rootCfg.cfgs.FirstOrDefault(x => x.type == service_type_map[type]);
-        return await HTTPPost<T>($"{find.url}/{Rpcmap[type][method]}", headers);
+        var serverType = service_type_map[type];
+        var fit = rootCfg.FindServers(serverType);
+        if (fit == null || fit.Count == 0)
+            return HttpPostResult<T>.Empty;
+        foreach (var server in fit)
+        {
+            var result = await HTTPPost<T>($"{server.Url}/{Rpcmap[type][method]}", headers);
+            if (result.Success)
+                return result;
+        }
+        return HttpPostResult<T>.Empty;
     }
 
     public static void CollectRPC()
@@ -72,7 +90,7 @@ public static class HTTPTool
 
         foreach (var type in types)
         {
-            Dictionary<string, string> routeMap;
+            Dictionary<string, string>? routeMap;
             if (!Rpcmap.TryGetValue(type, out routeMap))
             {
                 routeMap = new Dictionary<string, string>();
@@ -81,18 +99,17 @@ public static class HTTPTool
 
             var attr = type.GetCustomAttribute<RpcControllerAttribute>();
             var route = type.GetCustomAttribute<RouteAttribute>();
+
+
+
+
+
             service_type_map[type] = attr.serverType;
             var methods = type.GetMethods().Where(method => method.GetCustomAttribute<HttpPostAttribute>() != null);
-
-
             foreach (var method in methods)
             {
                 string name = method.Name;
-                //string target = $"{type.FullName}/{name}";
-                //target = route.Template.Replace("[controller]", name);
-
                 routeMap[name] = route.Template.Replace("[controller]", name); ;
-                //Console.WriteLine(target);
             }
         }
     }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using Coravel.Scheduling.Schedule.Interfaces;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -29,7 +30,7 @@ public class WebSocketService : IApplicationServiceConfig, IApplicationConfig
             if (context.WebSockets.IsWebSocketRequest)
             {
                 var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-                var context_ws = new WebSocketChannel(new WebSocketToken(webSocket, context), root.Value.Current.webSocketQueueSize);
+                var context_ws = new WebSocketChannel(new WebSocketToken(webSocket, context), root.Value.WebSocket.QueueSize);
                 await context_ws.BeginRec();
             }
             else
@@ -44,12 +45,32 @@ public class WebSocketService : IApplicationServiceConfig, IApplicationConfig
     }
     void IApplicationConfig.Config(WebApplication application)
     {
+        Context.UseScheduler(scheduler =>
+        {
+            IScheduleInterval interval = scheduler.Schedule(CheckTokenAlive);
+            interval.EverySecond();
+        });
+
+
         application.UseWebSockets(new WebSocketOptions()
         {
             KeepAliveInterval = TimeSpan.FromDays(5)
         });
         application.Use(Accept);
-        WebSocketTool.Init(application.Services);
+        WebSocketTool.CreateMessageHandlers(application.Services);
+    }
+
+    private void CheckTokenAlive()
+    {
+        var tokens = WebSocketTool.GetTokens();
+
+        foreach (var token in tokens)
+        {
+            if ((DateTime.Now - token.LastTime).TotalSeconds > root.Value.WebSocket.AutoDisconnectTime)
+            {
+                token.Close(string.Empty, System.Net.WebSockets.WebSocketCloseStatus.NormalClosure);
+            }
+        }
     }
 
     void IApplicationServiceConfig.ConfigureServices(IServiceCollection services)

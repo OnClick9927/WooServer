@@ -1,5 +1,6 @@
 ﻿using Karambolo.Extensions.Logging.File;
 using Microsoft.Extensions.Logging;
+using WS.Core.Config;
 
 namespace WS.Core.Tool;
 
@@ -7,16 +8,15 @@ namespace WS.Core.Tool;
 public static class LogTools
 {
     private static ILoggerFactory factory;
-    internal static void InitLog()
+    internal static void InitLog(LogConfig log)
     {
-        var cfg = Context.config.Value;
         factory = LoggerFactory.Create(x => x.AddConsole().AddSimpleConsole(options =>
         {
             options.IncludeScopes = false;
             options.SingleLine = true;
-            options.TimestampFormat = cfg.Current.timeStampFormat;
+            options.TimestampFormat = log.TimeStampFormat;
         })
-           .SetMinimumLevel(cfg.Current.logLevel).AddFile(e =>
+           .SetMinimumLevel(log.LogLevel).AddFile(e =>
            {
                e.RootPath = AppContext.BaseDirectory;
                e.Files = new[] { new LogFileOptions { Path = "logs/<date:yyyy>_<date:MM>_<date:dd>-<counter>.txt" } };

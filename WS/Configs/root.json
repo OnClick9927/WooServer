@@ -1,29 +1,31 @@
 {
-  "ServerType": "Game",
-  "cfgs": [
-    {
-      "type": "Gate",
-      "url": "http://127.0.0.1:5002",
-      "webSocketQueueSize": 4096,
-      "logLevel": "Information",
-      "timeStampFormat": "[yy-MM-dd HH:mm:ss.fff]",
-      "snowflake": {
-        "workerId": 2,
-        "dataCenterId": 4,
-        "sequence": 0
-      }
+  "ServerIndex": 1,
+  "WebSocket": {
+    "QueueSize": 4096,
+    "AutoDisconnectTime": 4
+  },
+  "Log": {
 
+    "LogLevel": "Information",
+    "TimeStampFormat": "[yy-MM-dd HH:mm:ss.fff]"
+  },
+  "Servers": [
+    {
+      "Type": "Gate",
+      "Url": "http://127.0.0.1:5002",
+      "Snowflake": {
+        "WorkerId": 2,
+        "DataCenterId": 4,
+        "Sequence": 0
+      }
     },
     {
-      "type": "Game",
-      "url": "http://127.0.0.1:5003",
-      "webSocketQueueSize": 4096,
-      "logLevel": "Information",
-      "timeStampFormat": "[yy-MM-dd HH:mm:ss.fff]",
+      "Type": "Game",
+      "Url": "http://127.0.0.1:5003",
       "snowflake": {
-        "workerId": 6,
-        "dataCenterId": 5,
-        "sequence": 0
+        "WorkerId": 6,
+        "DataCenterId": 5,
+        "Sequence": 0
       }
     }
   ]

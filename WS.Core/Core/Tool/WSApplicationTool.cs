@@ -71,23 +71,19 @@ public static class WSApplicationTool
         var configTypes = typeof(IApplicationConfig).GetSubTypes().ToList();
         serviceTypes.ForEach(x => services.AddSingleton(x));
         configTypes.ForEach(x => services.AddSingleton(x));
-        ;
         services.AddTransient<TStartup>();
 
         IServiceProvider provider = services.BuildServiceProvider();
 
-        Context.config = provider.GetRequiredService<IOptionsSnapshot<RootConfig>>();
-        LogTools.InitLog();
-
+        var config_root = provider.GetRequiredService<IOptionsSnapshot<RootConfig>>();
+        LogTools.InitLog(config_root.Value.Log);
+        IDTools.Init(config_root.Value.Current.Snowflake);
+        Context.config = config_root;
 
         var startup = provider.GetRequiredService<TStartup>();
 
 
 
-
-
-        startup.FitConfigTypes(serviceTypes, configTypes);
-        startup.BeforeBuildWebApplication();
         ///////////////////////////////////////////////////////////////
         var builder = WebApplication.CreateBuilder(args);
 
@@ -98,8 +94,9 @@ public static class WSApplicationTool
         logger.LogInformation("---配置服务 开始------------------------------");
         builder.Services.ConfigApplicationServices(serviceTypes, provider, logger);
         logger.LogInformation("---配置服务 结束------------------------------");
-        startup.ConfigServices(builder.Services);
+        startup.ConfigApplicationServices(builder.Services);
         var web_application = builder.Build();
+        Context.Config(web_application);
 
 
 
@@ -109,9 +106,8 @@ public static class WSApplicationTool
         web_application.ConfigApplication(configTypes, provider, logger);
         logger.LogInformation("---配置服务 结束------------------------------");
 
-        Context.Config(web_application);
-        startup.BeforeRun(web_application);
-        web_application.Run(provider.GetRequiredService<IOptionsSnapshot<RootConfig>>().Value.Current.url);
+        startup.ConfigApplication(web_application);
+        web_application.Run(provider.GetRequiredService<IOptionsSnapshot<RootConfig>>().Value.Current.Url);
 
         return provider;
     }

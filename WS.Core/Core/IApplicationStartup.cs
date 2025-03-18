@@ -5,8 +5,6 @@ namespace WS.Core;
 
 public interface IApplicationStartup
 {
-    void FitConfigTypes(List<Type> serviceTypes, List<Type> configTypes);
-    void BeforeRun(WebApplication web_application);
-    void BeforeBuildWebApplication();
-    void ConfigServices(IServiceCollection services);
+    void ConfigApplication(WebApplication web_application);
+    void ConfigApplicationServices(IServiceCollection services);
 }
