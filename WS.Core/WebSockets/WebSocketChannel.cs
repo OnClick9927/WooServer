@@ -1,5 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Coravel.Scheduling.Schedule;
+using Coravel.Scheduling.Schedule.Interfaces;
+using Microsoft.Extensions.Logging;
 using System.Net.WebSockets;
+using WS.Core;
 using WS.Core.Tool;
 
 namespace WS.WebSockets;
@@ -10,6 +13,9 @@ class WebSocketChannel
     public byte[] buffer;
     private IWebSocketBinaryQueue queue_binary;
     private IWebSocketTextQueue text_queue;
+    private static IWebSocketMsgPacker Packer;
+
+
     private static ILogger logger = LogTools.CreateLogger<WebSocketChannel>();
 
     public WebSocketChannel(WebSocketToken token, int size)
@@ -19,12 +25,17 @@ class WebSocketChannel
         buffer = new byte[size];
         queue_binary = WebSocketTool.CreateNewBinaryQueue(size);
         text_queue = WebSocketTool.CreateNewTextQueue(size);
+        Packer = WebSocketTool.CreateMsagPacker();
         WebSocketTool.RefreshToken(token);
     }
 
     public async Task BeginRec()
     {
-        var receiveResult = await token.socket.ReceiveAsync(buffer, CancellationToken.None);
+        CancellationTokenSource tokenSource = new CancellationTokenSource();
+        CancellationToken cancellationToken = tokenSource.Token;
+        var task = token.socket.ReceiveAsync(buffer, CancellationToken.None);
+
+        var receiveResult = await task;
         if (!receiveResult.CloseStatus.HasValue)
         {
             WebSocketTool.RefreshToken(token);
@@ -46,7 +57,7 @@ class WebSocketChannel
             var unpack = queue_binary.Unpack();
             if (unpack != null)
             {
-                var result = WebSocketTool.Decode(unpack);
+                var result = Packer.Decode(unpack);
                 logger.AlertLog(!result.succeed, "can't  decode message", LogLevel.Critical);
                 if (result.succeed)
                     WebSocketTool.ExecuteMsg(token, result.id, result.sid, result.msg);
@@ -58,21 +69,22 @@ class WebSocketChannel
             text_queue.OnTextMessage(token, endOfMessage, buffer, 0, len);
         }
     }
-    public void Send(ArraySegment<byte> bytes, WebSocketMessageType messageType, bool endOfMessage)
+    public async Task Send(ArraySegment<byte> bytes, WebSocketMessageType messageType, bool endOfMessage)
     {
         if (token.socket.State == WebSocketState.Open)
-            token.socket.SendAsync(bytes, messageType, true, CancellationToken.None);
+            await token.socket.SendAsync(bytes, messageType, true, CancellationToken.None);
     }
-    public void Send(int id, int sid, object msg)
+    public async Task Send(int id, int sid, object msg)
     {
-        var bytes = WebSocketTool.Encode(id, sid, msg);
-        Send(bytes, WebSocketMessageType.Binary, true);
+        var bytes = Packer.Encode(id, sid, msg);
+        await Send(bytes, WebSocketMessageType.Binary, true);
+        Packer.Release(bytes);
     }
-
     public async Task Close(string? statusDescription, WebSocketCloseStatus status = WebSocketCloseStatus.NormalClosure)
     {
+        if (token.socket.State == WebSocketState.Closed) return;
         await token.socket.CloseAsync(status, statusDescription, CancellationToken.None);
         WebSocketTool.RemoveToken(token);
-
     }
+
 }

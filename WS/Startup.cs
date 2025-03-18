@@ -40,7 +40,7 @@ class Startup : IApplicationStartup
     public async void Enter()
     {
         ILogger logger = LogTools.CreateLogger(typeof(Startup));
-        //logger.LogWarning($"snow flake Test {IDTools.NewId()}");
+        logger.LogWarning($"snow flake Test {IDTools.NewId()}");
         //Context.UseScheduler(scheduler =>
         //{
         //    scheduler.Schedule(

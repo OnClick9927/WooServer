@@ -4,26 +4,32 @@
     {
       "type": "Gate",
       "url": "http://127.0.0.1:5002",
-      "webSocketQueueSize": 4096,
       "logLevel": "Information",
       "timeStampFormat": "[yy-MM-dd HH:mm:ss.fff]",
       "snowflake": {
         "workerId": 2,
         "dataCenterId": 4,
         "sequence": 0
+      },
+      "webSocket": {
+        "queueSize": 4096,
+        "autoDisconnectTime": 4
       }
 
     },
     {
       "type": "Game",
       "url": "http://127.0.0.1:5003",
-      "webSocketQueueSize": 4096,
       "logLevel": "Information",
       "timeStampFormat": "[yy-MM-dd HH:mm:ss.fff]",
       "snowflake": {
         "workerId": 6,
         "dataCenterId": 5,
         "sequence": 0
+      },
+      "webSocket": {
+        "queueSize": 4096,
+        "autoDisconnectTime": 4
       }
     }
   ]
