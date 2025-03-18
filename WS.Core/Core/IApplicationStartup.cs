@@ -7,4 +7,6 @@ public interface IApplicationStartup
 {
     void ConfigApplication(WebApplication web_application);
     void ConfigApplicationServices(IServiceCollection services);
+    void OnEnter();
+    void OnShutDown();
 }

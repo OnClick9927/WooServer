@@ -15,6 +15,7 @@ namespace WS;
 
 class Startup : IApplicationStartup
 {
+    ILogger logger = LogTools.CreateLogger(typeof(Startup));
 
     private readonly IOptionsSnapshot<RootConfig> root;
     public Startup(IOptionsSnapshot<RootConfig> root)
@@ -30,40 +31,21 @@ class Startup : IApplicationStartup
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             builder.UseSqlite($"Data Source={dir}/_sqlite_{Type.Name}.db");
         });
-        //services.AddDbContext<TodoDbContext>((builder) =>
-        //{
-        //    //config?.Invoke(builder, typeof(TodoDbContext));
-        //    string dir = $"{AppContext.BaseDirectory}/databases";
-        //    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-
-        //    builder.UseSqlite($"Data Source={dir}/_sqlite.db");
-
-
-        //}, ServiceLifetime.Singleton);
     }
     void IApplicationStartup.ConfigApplicationServices(IServiceCollection services)
     {
         ConfigDB(services);
     }
-    async void IApplicationStartup.ConfigApplication(WebApplication web_application)
-    {
-        var logger = LogTools.CreateLogger<Startup>();
-
-        await Task.Delay(10);
-        logger.LogInformation("---进入APP------------------------------");
-        Enter();
-        await web_application.WaitForShutdownAsync();
-        logger.LogInformation("---ShutDown------------------------------");
-        ShutDown();
-    }
-     void ShutDown()
+    void IApplicationStartup.ConfigApplication(WebApplication web_application)
     {
 
     }
-     async void Enter()
+    void IApplicationStartup.OnShutDown()
     {
-        ILogger logger = LogTools.CreateLogger(typeof(Startup));
+
+    }
+    async void IApplicationStartup.OnEnter()
+    {
         logger.LogWarning($"snow flake Test {IDTools.NewId()}");
         await Task.Delay(1000);
         var result = await RPC.RPCCreateTodo(new TodoItemDTO()

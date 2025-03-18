@@ -8,6 +8,8 @@ public class RootConfig
 {
     public int ServerIndex { get; set; }
 
+    public double ServerLaunchTime { get; set; } = 1;
+
     public List<ServerConfig> Servers { get; set; } = new List<ServerConfig>();
 
     public WebSocketConfig WebSocket { get; set; } = new WebSocketConfig();

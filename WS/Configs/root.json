@@ -1,5 +1,6 @@
 {
   "ServerIndex": 1,
+  "ServerLaunchTime": 0.5,
   "WebSocket": {
     "QueueSize": 4096,
     "AutoDisconnectTime": 4

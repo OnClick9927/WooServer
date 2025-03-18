@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Reflection;
@@ -107,9 +108,19 @@ public static class WSApplicationTool
         logger.LogInformation("---配置服务 结束------------------------------");
 
         startup.ConfigApplication(web_application);
+        WaitLife(startup, logger, web_application,TimeSpan.FromSeconds(config_root.Value.ServerLaunchTime));
         web_application.Run(provider.GetRequiredService<IOptionsSnapshot<RootConfig>>().Value.Current.Url);
-
         return provider;
+    }
+
+    private async static void WaitLife<TStartup>(TStartup startup,ILogger logger,WebApplication application,TimeSpan span) where TStartup: IApplicationStartup
+    {
+        await Task.Delay(span);
+        logger.LogInformation("---进入APP------------------------------");
+        startup.OnEnter();
+        await application.WaitForShutdownAsync();
+        logger.LogInformation("---ShutDown------------------------------");
+        startup.OnShutDown();
     }
 
 }
