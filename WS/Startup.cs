@@ -40,22 +40,23 @@ class Startup : IApplicationStartup
     public async void Enter()
     {
         ILogger logger = LogTools.CreateLogger(typeof(Startup));
-        logger.LogWarning($"snow flake Test {IDTools.NewId()}");
-        Context.UseScheduler(scheduler =>
-        {
-            scheduler.Schedule(
-                () => logger.LogError("Every minute during the week.")
-            )
-            .EverySecond()
-            .Weekday();
+        //logger.LogWarning($"snow flake Test {IDTools.NewId()}");
+        //Context.UseScheduler(scheduler =>
+        //{
+        //    scheduler.Schedule(
+        //        () => logger.LogError("Every minute during the week.")
+        //    )
+        //    .EverySecond()
+        //    .Weekday();
 
 
-            //scheduler.Schedule(
-            //    () => Console.WriteLine("Every ten.")
-            //)
-            //.EveryTenSeconds()
-            //.Weekday();
-        });
+        //    //scheduler.Schedule(
+        //    //    () => Console.WriteLine("Every ten.")
+        //    //)
+        //    //.EveryTenSeconds()
+        //    //.Weekday();
+        //});
+        await Task.Delay(1000);
         var result = await RPC.RPCCreateTodo(new TodoItemDTO()
         {
             Name = "zz",
@@ -63,18 +64,6 @@ class Startup : IApplicationStartup
 
         }, 100);
         logger.LogInformation(result.ToString());
-        //try
-        //{
-
-        //int a = 0, b = 5;
-        //var _result = b / a;
-        //}
-        //catch (Exception e)
-        //{
-
-        //    throw e;
-        //}
-        //Console.WriteLine(555);
     }
 
     void IApplicationStartup.BeforeBuildWebApplication()
@@ -82,20 +71,33 @@ class Startup : IApplicationStartup
 
     }
 
-    void IApplicationStartup.ConfigServices(IServiceCollection services)
+    public static void ConfigDB(IServiceCollection services)
     {
-
-        services.AddWSDataContexts((op, type) =>
+        DBServiceTool.AddDBContexts(services, (builder,Type) =>
         {
+            //config?.Invoke(builder, typeof(TodoDbContext));
             string dir = $"{AppContext.BaseDirectory}/databases";
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-
-            op.UseSqlite($"Data Source={dir}/_sqlite.db");
+            builder.UseSqlite($"Data Source={dir}/_sqlite_{Type.Name}.db");
         });
+        //services.AddDbContext<TodoDbContext>((builder) =>
+        //{
+        //    //config?.Invoke(builder, typeof(TodoDbContext));
+        //    string dir = $"{AppContext.BaseDirectory}/databases";
+        //    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+
+        //    builder.UseSqlite($"Data Source={dir}/_sqlite.db");
+
+
+        //}, ServiceLifetime.Singleton);
+    }
+    void IApplicationStartup.ConfigServices(IServiceCollection services)
+    {
+        ConfigDB(services);
     }
 
-    public void FitConfigTypes(List<Type> serviceTypes, List<Type> configTypes, List<Type> tools)
+    public void FitConfigTypes(List<Type> serviceTypes, List<Type> configTypes)
     {
         //serviceTypes.Clear();
         //configTypes.Clear(); 

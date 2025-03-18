@@ -97,12 +97,20 @@ public static class TypeTools
     {
         assembly.GetReferencedAssemblies().ToList().ForEach(i =>
         {
-            var ass = Assembly.Load(i);
-            if (!list.Contains(ass))
+            try
             {
-                list.Add(ass);
-                GetReferanceAssemblies(ass, list);
+                var ass = Assembly.Load(i);
+                if (!list.Contains(ass))
+                {
+                    list.Add(ass);
+                    GetReferanceAssemblies(ass, list);
+                }
             }
+            catch (Exception)
+            {
+
+            }
+     
         });
     }
     public static IEnumerable<Type> GetTypes()

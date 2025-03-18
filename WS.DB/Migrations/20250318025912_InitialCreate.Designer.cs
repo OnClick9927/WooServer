@@ -10,7 +10,7 @@ using WS.DB;
 namespace WS.DB.Migrations
 {
     [DbContext(typeof(TodoDbContext))]
-    [Migration("20241121050357_InitialCreate")]
+    [Migration("20250318025912_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />

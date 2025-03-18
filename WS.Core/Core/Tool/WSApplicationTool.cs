@@ -4,7 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Reflection;
+using WS.Core;
 using WS.Core.Config;
+using WS.HTTP;
 
 namespace WS.Core.Tool;
 
@@ -69,26 +71,24 @@ public static class WSApplicationTool
         var configTypes = typeof(IApplicationConfig).GetSubTypes().ToList();
         serviceTypes.ForEach(x => services.AddSingleton(x));
         configTypes.ForEach(x => services.AddSingleton(x));
-        var toolTypes = TypeTools.GetTypesWithAttribute(typeof(ToolInitAttribute), false).ToList()
-                             ;
-
-
-
+        ;
         services.AddTransient<TStartup>();
 
         IServiceProvider provider = services.BuildServiceProvider();
-        var startup = provider.GetRequiredService<TStartup>();
-        startup.FitConfigTypes(serviceTypes, configTypes, toolTypes);
-        toolTypes.Select(x => x.GetMethod("Init",
-                                      BindingFlags.Static | BindingFlags.NonPublic,
-                                      new Type[] { typeof(IServiceProvider) }
-                              ))
-                             .ToList()
-                             .ForEach(x =>
-                                x.Invoke(null, new object[] { provider })
-                             );
 
+        Context.config = provider.GetRequiredService<IOptionsSnapshot<RootConfig>>();
+        LogTools.InitLog();
+
+
+        var startup = provider.GetRequiredService<TStartup>();
+
+
+
+
+
+        startup.FitConfigTypes(serviceTypes, configTypes);
         startup.BeforeBuildWebApplication();
+        ///////////////////////////////////////////////////////////////
         var builder = WebApplication.CreateBuilder(args);
 
 

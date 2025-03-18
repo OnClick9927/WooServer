@@ -3,11 +3,15 @@ using Coravel;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Options;
+using WS.Core.Config;
 
 namespace WS.Core;
 
 public class Context
 {
+    public static IOptionsSnapshot<RootConfig> config;
+
     public static IServiceProvider Services { get; private set; }
     public static IWebHostEnvironment Environment { get; private set; }
     public static IHostApplicationLifetime Lifetime { get; private set; }

@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using WS.Core.Tool;
 
-namespace WS.Core.Service;
+namespace WS.Core;
 
 class TimeSchedulerService : IApplicationServiceConfig
 {
