@@ -6,6 +6,8 @@ namespace WS.Core.WebSockets;
 
 class WebSocketChannel : ITimeEntityContext
 {
+
+
     private WebSocketToken token;
     public byte[] buffer;
     private IWebSocketBinaryQueue queue_binary;
