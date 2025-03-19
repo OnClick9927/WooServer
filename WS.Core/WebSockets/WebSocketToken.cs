@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using System.Net.WebSockets;
 
-namespace WS.WebSockets;
+namespace WS.Core.WebSockets;
 
 public class WebSocketToken
 {
@@ -9,6 +9,7 @@ public class WebSocketToken
     public HttpContext context;
     internal WebSocketChannel channel;
     internal DateTime LastTime;
+    public long userData { get; internal set; }
 
     public WebSocketToken(WebSocket socket, HttpContext context)
     {

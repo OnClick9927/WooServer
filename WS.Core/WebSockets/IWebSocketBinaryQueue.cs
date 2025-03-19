@@ -1,4 +1,4 @@
-﻿namespace WS.WebSockets;
+﻿namespace WS.Core.WebSockets;
 
 public interface IWebSocketBinaryQueue
 {

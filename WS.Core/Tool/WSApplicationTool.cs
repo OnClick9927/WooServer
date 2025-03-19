@@ -5,23 +5,22 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Reflection;
-using WS.Core;
 using WS.Core.Config;
-using WS.HTTP;
 
 namespace WS.Core.Tool;
 
 public static class WSApplicationTool
 {
 
-    private static void AddAttributeServices(this IServiceCollection services, ILogger logger)
+    private static void AddAttributeServices(this IServiceCollection services, ILogger logger, ServerType serverType)
     {
         TypeTools.GetTypesWithAttribute(typeof(ServiceAttribute), false).ToList().ForEach(type =>
         {
 
-            logger.LogInformation($"---> {type}");
 
             var attr = type.GetCustomAttribute<ServiceAttribute>();
+            if (!attr.ServerType.HasFlag(serverType)) return;
+            logger.LogInformation($"AddServiceByAttr---> {type}");
             switch (attr.Lifetime)
             {
                 case ServiceLifetime.Singleton:
@@ -38,64 +37,72 @@ public static class WSApplicationTool
     }
 
 
-    private static void ConfigApplicationServices(this IServiceCollection services, IEnumerable<Type> serviceTypes, IServiceProvider provider, ILogger logger)
+    private static void ConfigApplicationServices(this IServiceCollection services, IEnumerable<Type> serviceTypes, IServiceProvider provider, ILogger logger, ServerType serverType)
     {
-        services.AddAttributeServices(logger);
+        services.AddAttributeServices(logger, serverType);
         foreach (var type in serviceTypes)
         {
+            var cfg = provider.GetRequiredService(type) as IApplicationConfiguration;
+            if (!cfg.Fit().HasFlag(serverType)) continue;
             logger.LogInformation($"---> {type}");
-            var cfg = provider.GetRequiredService(type) as IApplicationServiceConfig;
             cfg.ConfigureServices(services);
         }
 
     }
 
-    private static void ConfigApplication(this WebApplication web_application, IEnumerable<Type> configTypes, IServiceProvider provider, ILogger logger)
+    private static void ConfigApplication(this WebApplication web_application, IEnumerable<Type> configTypes, IServiceProvider provider, ILogger logger, ServerType serverType)
     {
         foreach (var type in configTypes)
         {
+            var cfg = provider.GetRequiredService(type) as IApplicationConfiguration;
+            if (!cfg.Fit().HasFlag(serverType)) continue;
+
             logger.LogInformation($"---> {type}");
-            var cfg = provider.GetRequiredService(type) as IApplicationConfig;
-            cfg.Config(web_application);
+            cfg.Configure(web_application);
         }
     }
 
-    public static IServiceProvider Run<TStartup>(string[] args, string rootConfigName = "root.json") where TStartup : class, IApplicationStartup
+    public static void Run<TApplication>(string[] args, string? serverName, string rootConfigName = "root.json") where TApplication : class, IApplication
     {
 
         IServiceCollection services = new ServiceCollection();
 
         IConfiguration config = ConfigTools.LoadConfig(rootConfigName);
-        services.AddOptions().Configure<RootConfig>(config, e => config.Bind(e));
-
-        var serviceTypes = typeof(IApplicationServiceConfig).GetSubTypes().ToList();
-        var configTypes = typeof(IApplicationConfig).GetSubTypes().ToList();
-        serviceTypes.ForEach(x => services.AddSingleton(x));
+        services.Configure<RootConfig>(config, e => config.Bind(e));
+        var configTypes = typeof(IApplicationConfiguration).GetSubTypes().ToList();
         configTypes.ForEach(x => services.AddSingleton(x));
-        services.AddTransient<TStartup>();
+        services.AddTransient<TApplication>();
 
         IServiceProvider provider = services.BuildServiceProvider();
 
         var config_root = provider.GetRequiredService<IOptionsSnapshot<RootConfig>>();
         LogTools.InitLog(config_root.Value.Log);
+        ILogger logger = LogTools.CreateLogger<TApplication>();
+
+
+
+        if (!config_root.Value.SetCurrent(serverName))
+        {
+            logger.LogCritical("SetCurrent Server Err");
+            return;
+        }
         IDTools.Init(config_root.Value.Current.Snowflake);
         Context.config = config_root;
 
-        var startup = provider.GetRequiredService<TStartup>();
+        var app = provider.GetRequiredService<TApplication>();
 
 
 
         ///////////////////////////////////////////////////////////////
         var builder = WebApplication.CreateBuilder(args);
 
+        ServerType type = config_root.Value.ServerType;
 
 
-
-        ILogger logger = LogTools.CreateLogger<TStartup>();
         logger.LogInformation("---配置服务 开始------------------------------");
-        builder.Services.ConfigApplicationServices(serviceTypes, provider, logger);
+        builder.Services.ConfigApplicationServices(configTypes, provider, logger, type);
+        app.ConfigureApplicationServices(builder.Services);
         logger.LogInformation("---配置服务 结束------------------------------");
-        startup.ConfigApplicationServices(builder.Services);
         var web_application = builder.Build();
         Context.Config(web_application);
 
@@ -104,16 +111,15 @@ public static class WSApplicationTool
 
 
         logger.LogInformation("---配置服务 开始------------------------------");
-        web_application.ConfigApplication(configTypes, provider, logger);
+        web_application.ConfigApplication(configTypes, provider, logger, type);
+        app.ConfigureApplication(web_application);
         logger.LogInformation("---配置服务 结束------------------------------");
 
-        startup.ConfigApplication(web_application);
-        WaitLife(startup, logger, web_application,TimeSpan.FromSeconds(config_root.Value.ServerLaunchTime));
-        web_application.Run(provider.GetRequiredService<IOptionsSnapshot<RootConfig>>().Value.Current.Url);
-        return provider;
+        WaitLife(app, logger, web_application, TimeSpan.FromSeconds(config_root.Value.ServerLaunchTime));
+        web_application.Run(config_root.Value.Current.Url);
     }
 
-    private async static void WaitLife<TStartup>(TStartup startup,ILogger logger,WebApplication application,TimeSpan span) where TStartup: IApplicationStartup
+    private async static void WaitLife<TApplication>(TApplication startup, ILogger logger, WebApplication application, TimeSpan span) where TApplication : IApplication
     {
         await Task.Delay(span);
         logger.LogInformation("---进入APP------------------------------");

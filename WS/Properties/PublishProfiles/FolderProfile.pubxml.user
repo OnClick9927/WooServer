@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+https://go.microsoft.com/fwlink/?LinkID=208121.
+-->
+<Project>
+  <PropertyGroup>
+    <_PublishTargetUrl>E:\Project\C#\WooServer\WS\bin\Release\net9.0\publish\</_PublishTargetUrl>
+    <History>True|2025-03-19T09:18:51.0147730Z||;True|2025-03-19T17:17:29.6739188+08:00||;True|2025-03-19T17:08:20.3018257+08:00||;True|2025-03-19T15:32:46.9617221+08:00||;True|2025-03-19T15:30:05.2103881+08:00||;True|2025-03-19T15:25:59.3431492+08:00||;True|2025-03-19T15:12:22.0596958+08:00||;True|2025-03-19T14:47:14.9539155+08:00||;</History>
+    <LastFailureDetails />
+  </PropertyGroup>
+</Project>

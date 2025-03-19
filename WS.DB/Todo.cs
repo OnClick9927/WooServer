@@ -1,35 +1,46 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Design;
+using WS.Core;
 
 namespace WS.DB
 {
-    public class TodoDbContextFactory : IDesignTimeDbContextFactory<TodoDbContext>
+    //public class TodoDbContextFactory : IDesignTimeDbContextFactory<TodoDbContext>
+    //{
+    //    public TodoDbContext CreateDbContext(string[] args)
+    //    {
+    //        var optionsBuilder = new DbContextOptionsBuilder<TodoDbContext>();
+
+    //        string dir = $"{AppContext.BaseDirectory}/databases";
+    //        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+
+    //        optionsBuilder.UseSqlite($"Data Source={dir}/_sqlite.db");
+
+
+
+
+    //        return new TodoDbContext(optionsBuilder.Options);
+    //    }
+    //}
+    public class TodoDbContext : WSDbContext<TodoDbContext>
     {
-        public TodoDbContext CreateDbContext(string[] args)
+        public TodoDbContext(DbContextOptions<TodoDbContext> options) : base(options)
         {
-            var optionsBuilder = new DbContextOptionsBuilder<TodoDbContext>();
-
-            string dir = $"{AppContext.BaseDirectory}/databases";
-            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-
-            optionsBuilder.UseSqlite($"Data Source={dir}/_sqlite.db");
-
-
-
-
-            return new TodoDbContext(optionsBuilder.Options);
         }
-    }
-    public class TodoDbContext : DbContext
-    {
-        public TodoDbContext(DbContextOptions options) : base(options) { }
+
+        //public TodoDbContext(DbContextOptions options) : base(options)
+        //{
+        //}
+
         public DbSet<Todo> Todos { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(GetType().Assembly);
+        }
+        public Todo Get()
+        {
+            return Todos.FirstOrDefault();
         }
     }
 

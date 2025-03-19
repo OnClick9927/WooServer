@@ -1,13 +1,10 @@
-﻿using Coravel.Scheduling.Schedule;
-using Coravel.Scheduling.Schedule.Interfaces;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using System.Net.WebSockets;
-using WS.Core;
 using WS.Core.Tool;
 
-namespace WS.WebSockets;
+namespace WS.Core.WebSockets;
 
-class WebSocketChannel
+class WebSocketChannel : ITimeEntityContext
 {
     private WebSocketToken token;
     public byte[] buffer;
@@ -18,8 +15,12 @@ class WebSocketChannel
 
     private static ILogger logger = LogTools.CreateLogger<WebSocketChannel>();
 
-    public WebSocketChannel(WebSocketToken token, int size)
+    private TimeTool.TimeEntity entity;
+    private double AutoDisconnectTime;
+
+    public WebSocketChannel(WebSocketToken token, int size, double AutoDisconnectTime)
     {
+        this.AutoDisconnectTime = AutoDisconnectTime;
         token.channel = this;
         this.token = token;
         buffer = new byte[size];
@@ -27,6 +28,7 @@ class WebSocketChannel
         text_queue = WebSocketTool.CreateNewTextQueue(size);
         Packer = WebSocketTool.CreateMsagPacker();
         WebSocketTool.RefreshToken(token);
+        entity = TimeTool.Add(this);
     }
 
     public async Task BeginRec()
@@ -83,8 +85,16 @@ class WebSocketChannel
     public async Task Close(string? statusDescription, WebSocketCloseStatus status = WebSocketCloseStatus.NormalClosure)
     {
         if (token.socket.State == WebSocketState.Closed) return;
+        entity.InvokeComplete();
         await token.socket.CloseAsync(status, statusDescription, CancellationToken.None);
         WebSocketTool.RemoveToken(token);
     }
 
+    void ITimeEntityContext.Invoke()
+    {
+        if ((DateTime.Now - token.LastTime).TotalSeconds > AutoDisconnectTime)
+        {
+            token.Close(string.Empty, WebSocketCloseStatus.NormalClosure);
+        }
+    }
 }

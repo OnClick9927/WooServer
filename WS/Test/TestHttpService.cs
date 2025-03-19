@@ -1,18 +1,18 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System.Net.WebSockets;
-using static WS.HTTP.HTTPTool;
+using static WS.Core.HTTP.HTTPTool;
 using WS.DB;
-using WS.HTTP;
-using WS.WebSockets;
 using WS.Core.Config;
+using WS.Core.HTTP;
+using WS.Core.WebSockets;
 
 namespace WS.Test
 {
 
 
     [WebSocketHandlerAttribute]
-    public class TestWS : IWebSocketBinaryQueue, IWebSocketMsgPacker, IWebSocketTokenCollection, IWebSocketTextQueue
+    public class TestWS : IWebSocketBinaryQueue, IWebSocketMsgPacker, IWebSocketTextQueue
     {
 
 
@@ -28,22 +28,6 @@ namespace WS.Test
         public void OnTextMessage(WebSocketToken token, bool endOfMessage, byte[] buffer, int offset, int len)
         {
             token.Send(new ArraySegment<byte>(buffer, 0, len), WebSocketMessageType.Text, endOfMessage);
-        }
-
-        List<WebSocketToken> tokens = new List<WebSocketToken>();
-        public IEnumerable<WebSocketToken> GetTokens()
-        {
-            return tokens;
-        }
-        public void Refresh(WebSocketToken token, DateTime now)
-        {
-            if (!tokens.Contains(token))
-                tokens.Add(token);
-        }
-
-        public void Remove(WebSocketToken token)
-        {
-            tokens.Remove(token);
         }
 
         public void Test(WebSocketToken token, int id, int sid, TodoItemDTO hha)
@@ -76,11 +60,10 @@ namespace WS.Test
 
     public static class RPC
     {
-        public static async Task<HttpPostResult<TodoItemDTO>> RPCCreateTodo(TodoItemDTO todoItemDTO, int test)
+        public static async Task<HttpPostResult<TodoItemDTO>> RPCCreateTodo( int test)
         {
 
             return await HTTPTool.RpcHTTPPost<TodoItemDTO>(typeof(TestController), nameof(TestController.Test), new Dictionary<string, object> {
-                { nameof(todoItemDTO),todoItemDTO},
                 { nameof(test),test}
             });
         }
@@ -117,9 +100,21 @@ namespace WS.Test
     [RpcControllerAttribute(ServerType.Game)]
     public class TestController : ControllerBase
     {
-        [HttpPost]
-        public async Task<IResult> Test([FromHeader] TodoItemDTO todoItemDTO, [FromHeader] int test)
+        TodoDbContext db;
+
+        public TestController(TodoDbContext db)
         {
+            this.db = db;
+        }
+
+        [HttpPost]
+        public async Task<IResult> Test( [FromHeader] int test)
+        {
+            TodoItemDTO todoItemDTO = new TodoItemDTO();
+            var get = db.Get();
+            todoItemDTO.Name=get.Name;
+
+
             await Task.Delay(100);
             return TypedResults.Ok(todoItemDTO);
         }

@@ -27,4 +27,9 @@
     <ProjectReference Include="..\WS.Core\WS.Core.csproj" />
     <ProjectReference Include="..\WS.DB\WS.DB.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="databases\_sqlite_TodoDbContext.db">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

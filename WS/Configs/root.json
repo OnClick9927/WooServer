@@ -1,5 +1,5 @@
 {
-  "ServerIndex": 1,
+  "ServerName": "Game",
   "ServerLaunchTime": 0.5,
   "WebSocket": {
     "QueueSize": 4096,
@@ -12,6 +12,7 @@
   },
   "Servers": [
     {
+      "Name": "Gate",
       "Type": "Gate",
       "Url": "http://127.0.0.1:5002",
       "Snowflake": {
@@ -21,6 +22,7 @@
       }
     },
     {
+      "Name": "Game",
       "Type": "Game",
       "Url": "http://127.0.0.1:5003",
       "snowflake": {

@@ -1,12 +1,11 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using WS.Core;
 
-namespace WS.WebSockets;
+namespace WS.Core.WebSockets;
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
 public class WebSocketHandlerAttribute : ServiceAttribute
 {
-    public WebSocketHandlerAttribute() : base(ServiceLifetime.Singleton)
+    public WebSocketHandlerAttribute() : base(ServiceLifetime.Singleton, Config.ServerType.Game)
     {
     }
 }

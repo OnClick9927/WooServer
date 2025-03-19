@@ -1,41 +1,31 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using WS.Core;
 using WS.Core.Tool;
 
-namespace WS.WebSockets;
+namespace WS.Core.WebSockets;
 
-class WebSocketTool
+public class WebSocketTool
 {
     private static Dictionary<Type, Delegate> msg_handlers;
     private static ILogger logger = LogTools.CreateLogger<WebSocketTool>();
-
-    //private static IWebSocketMsgPacker? Packer;
-    //private static IWebSocketTokenCollection? tokenCollection;
-
     internal static IWebSocketMsgPacker CreateMsagPacker()
     {
         return Context.Services.GetRequiredService<IWebSocketMsgPacker>();
     }
-    public static IWebSocketBinaryQueue? CreateNewBinaryQueue(int size)
+    internal static IWebSocketBinaryQueue? CreateNewBinaryQueue(int size)
     {
         var queue = Context.Services.GetRequiredService<IWebSocketBinaryQueue>();
         queue?.Init(size);
         return queue;
     }
-    public static IWebSocketTextQueue? CreateNewTextQueue(int size)
+    internal static IWebSocketTextQueue? CreateNewTextQueue(int size)
     {
         var queue = Context.Services.GetRequiredService<IWebSocketTextQueue>();
         queue?.Init(size);
         return queue;
     }
-
-
-    public static IWebSocketTokenCollection GetWebSocketTokenCollection() => Context.Services.GetRequiredService<IWebSocketTokenCollection>();
-
-
-
-    public static void ExecuteMsg(WebSocketToken token, int id, int sid, object msg)
+    static IWebSocketTokenCollection GetWebSocketTokenCollection() => Context.Services.GetRequiredService<IWebSocketTokenCollection>();
+    internal static void ExecuteMsg(WebSocketToken token, int id, int sid, object msg)
     {
         var msgType = msg.GetType();
         if (msg_handlers.TryGetValue(msgType, out var del))
@@ -48,7 +38,7 @@ class WebSocketTool
             logger.LogCritical($"Not Find Handler id{id}:sid:{sid}msg:{msgType}");
         }
     }
-    public static bool CreateMessageHandlers(IServiceProvider services)
+    internal static bool CreateMessageHandlers(IServiceProvider services)
     {
         try
         {
@@ -97,7 +87,7 @@ class WebSocketTool
         services.AddTransient(typeof(IWebSocketBinaryQueue), queueType_Binary_Type);
         services.AddTransient(typeof(IWebSocketTextQueue), queueType_Text_Type);
 
-        logger.LogInformation($"{nameof(IWebSocketTokenCollection)}---> {tokenCollectionType}");
+        //logger.LogInformation($"{nameof(IWebSocketTokenCollection)}---> {tokenCollectionType}");
         logger.LogInformation($"{nameof(IWebSocketMsgPacker)}---> {packerType}");
         logger.LogInformation($"{nameof(IWebSocketBinaryQueue)}---> {queueType_Binary_Type}");
         logger.LogInformation($"{nameof(IWebSocketTextQueue)}---> {queueType_Text_Type}");
@@ -106,21 +96,27 @@ class WebSocketTool
 
 
     }
-
-    public static void RefreshToken(WebSocketToken token)
+    internal static void RefreshToken(WebSocketToken token)
     {
         token.LastTime = DateTime.Now;
         GetWebSocketTokenCollection().Refresh(token, DateTime.Now);
     }
-    public static IEnumerable<WebSocketToken> GetTokens()
+    internal static IEnumerable<WebSocketToken> GetTokens()
     {
         return GetWebSocketTokenCollection().GetTokens();
     }
-    public static void RemoveToken(WebSocketToken token)
+    internal static void RemoveToken(WebSocketToken token)
     {
         GetWebSocketTokenCollection().Remove(token);
 
     }
 
-
+    public static void BindToken(WebSocketToken token, long userData)
+    {
+        GetWebSocketTokenCollection().Bind(token, userData);
+    }
+    public static WebSocketToken? FindToken(long userData)
+    {
+        return GetWebSocketTokenCollection().Find(userData);
+    }
 }

@@ -3,11 +3,10 @@ using Newtonsoft.Json;
 using System.Net;
 using System.Reflection;
 using System.Text;
-using WS.Core;
 using WS.Core.Config;
 using WS.Core.Tool;
 
-namespace WS.HTTP;
+namespace WS.Core.HTTP;
 
 public static class HTTPTool
 {
@@ -84,7 +83,7 @@ public static class HTTPTool
         return HttpPostResult<T>.Empty;
     }
 
-    public static void CollectRPC()
+    internal static void CollectRPC()
     {
         var types = TypeTools.GetTypesWithAttribute(typeof(RpcControllerAttribute), false);
 

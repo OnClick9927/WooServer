@@ -3,26 +3,18 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
-using WS.Core;
 using WS.Core.Config;
 using WS.Core.Tool;
 
 
-namespace WS.HTTP;
+namespace WS.Core.HTTP;
 
-class HTTPService : IApplicationConfig, IApplicationServiceConfig
+class HTTPConfiguration : IApplicationConfiguration
 {
-    private ILogger logger = LogTools.CreateLogger<HTTPService>();
-    private readonly IOptionsSnapshot<RootConfig> root;
-
-    public HTTPService(IOptionsSnapshot<RootConfig> root)
-    {
-        this.root = root;
-    }
-
-    void IApplicationConfig.Config(WebApplication application)
+    ServerType IApplicationConfiguration.Fit() => ServerType.All;
+    private ILogger logger = LogTools.CreateLogger<HTTPConfiguration>();
+    void IApplicationConfiguration.Configure(WebApplication application)
     {
         //////////////////////////////////////////////////////////////////////////
 
@@ -54,7 +46,7 @@ class HTTPService : IApplicationConfig, IApplicationServiceConfig
 
     }
 
-    public void ConfigureServices(IServiceCollection services)
+    void IApplicationConfiguration.ConfigureServices(IServiceCollection services)
     {
         //services.AddMvc();
         services.AddControllers();
