@@ -30,7 +30,7 @@ public class WebSocketTool
         var msgType = msg.GetType();
         if (msg_handlers.TryGetValue(msgType, out var del))
         {
-            logger.LogCritical($"Execute Msg {id}:sid:{sid}msg:{msgType}");
+            logger.LogInformation($"Execute Msg {id}:sid:{sid}msg:{msgType}");
             del.DynamicInvoke(token, id, sid, msg);
         }
         else
