@@ -26,7 +26,21 @@ class WebSocketConfiguration : IApplicationConfiguration
             {
                 var webSocket = await context.WebSockets.AcceptWebSocketAsync();
                 var context_ws = new WebSocketChannel(new WebSocketToken(webSocket, context), root.Value.WebSocket.QueueSize, root.Value.WebSocket.AutoDisconnectTime);
-                await context_ws.BeginRec();
+
+                try
+                {
+                    await context_ws.BeginRec();
+                }
+                catch (Exception e)
+                {
+                    if (e is System.OperationCanceledException)
+                        await next(context);
+                    else
+                    {
+                        logger.LogCritical($" Server ERR {e.GetType().FullName} \n {e.Message}\n {e}");
+                        throw;
+                    }
+                }
             }
             else
             {

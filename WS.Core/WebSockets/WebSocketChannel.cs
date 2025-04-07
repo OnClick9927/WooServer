@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Net.WebSockets;
 using WS.Core.Tool;
+using static WS.Core.Tool.TimeTool;
 
 namespace WS.Core.WebSockets;
 
@@ -17,6 +18,7 @@ class WebSocketChannel : ITimeEntityContext
 
     private static ILogger logger = LogTools.CreateLogger<WebSocketChannel>();
 
+    private RecieveMessageQueue messageQueue;
     private TimeTool.TimeEntity entity;
     private double AutoDisconnectTime;
 
@@ -31,25 +33,60 @@ class WebSocketChannel : ITimeEntityContext
         Packer = WebSocketTool.CreateMsagPacker();
         WebSocketTool.RefreshToken(token);
         entity = TimeTool.Add(this);
+        messageQueue = new RecieveMessageQueue();
     }
 
+    CancellationTokenSource tokenSource = new CancellationTokenSource();
     public async Task BeginRec()
     {
-        CancellationTokenSource tokenSource = new CancellationTokenSource();
-        CancellationToken cancellationToken = tokenSource.Token;
-        var task = token.socket.ReceiveAsync(buffer, CancellationToken.None);
-
-        var receiveResult = await task;
-        if (!receiveResult.CloseStatus.HasValue)
+        var task = token.socket.ReceiveAsync(buffer, tokenSource.Token);
+        var awaiter = task.GetAwaiter();
+        while (!awaiter.IsCompleted)
         {
-            WebSocketTool.RefreshToken(token);
-            OnRec(receiveResult.MessageType,
-                receiveResult.EndOfMessage, receiveResult.Count);
-            await BeginRec();
+
+            await Task.Delay(1);
+
+            if (task.Exception != null)
+            {
+                break;
+
+            }
+
+        }
+
+        if (task.Exception != null)
+        {
+            Exception e = task.Exception;
+            if (e is System.OperationCanceledException || e is AggregateException)
+                await Close(e.Message, WebSocketCloseStatus.NormalClosure);
+            else
+            {
+                logger.LogCritical($" Server ERR {e.GetType().FullName} \n {e.Message}\n {e}");
+
+                throw e;
+            }
+
         }
         else
-            await Close(receiveResult.CloseStatusDescription, receiveResult.CloseStatus.Value);
+        {
+
+            var receiveResult = awaiter.GetResult();
+            if (!receiveResult.CloseStatus.HasValue)
+            {
+                WebSocketTool.RefreshToken(token);
+                OnRec(receiveResult.MessageType,
+                    receiveResult.EndOfMessage, receiveResult.Count);
+                await BeginRec();
+            }
+            else
+                await Close(receiveResult.CloseStatusDescription, receiveResult.CloseStatus.Value);
+        }
+
     }
+
+
+
+
     private void OnRec(WebSocketMessageType messageType, bool endOfMessage, int len)
     {
 
@@ -64,7 +101,7 @@ class WebSocketChannel : ITimeEntityContext
                 var result = Packer.Decode(unpack);
                 logger.AlertLog(!result.succeed, "can't  decode message", LogLevel.Critical);
                 if (result.succeed)
-                    WebSocketTool.ExecuteMsg(token, result.id, result.sid, result.msg);
+                    messageQueue.Enqueue(token, result.id, result.sid, result.msg);
                 goto UNPACK;
             }
         }
@@ -80,6 +117,9 @@ class WebSocketChannel : ITimeEntityContext
     }
     public async Task Send(int id, int sid, object msg)
     {
+
+        var lev = WebSocketTool.GetMessageLogLevel(id, sid, msg);
+        logger.Log(lev, $"Send Msg {id}:sid:{sid}msg:{msg.GetType()}\t{msg}");
         var bytes = Packer.Encode(id, sid, msg);
         await Send(bytes, WebSocketMessageType.Binary, true);
         Packer.Release(bytes);
@@ -87,16 +127,21 @@ class WebSocketChannel : ITimeEntityContext
     public async Task Close(string? statusDescription, WebSocketCloseStatus status = WebSocketCloseStatus.NormalClosure)
     {
         if (token.socket.State == WebSocketState.Closed) return;
+        messageQueue.Clear();
+        tokenSource.Cancel();
         entity.InvokeComplete();
-        await token.socket.CloseAsync(status, statusDescription, CancellationToken.None);
         WebSocketTool.RemoveToken(token);
+        if (token.socket.State != WebSocketState.Aborted)
+            await token.socket.CloseAsync(status, statusDescription, CancellationToken.None);
+        else
+            token.socket.Dispose();
     }
 
     void ITimeEntityContext.Invoke()
     {
         if ((DateTime.Now - token.LastTime).TotalSeconds > AutoDisconnectTime)
         {
-            token.Close(string.Empty, WebSocketCloseStatus.NormalClosure);
+            Close("Time out", WebSocketCloseStatus.NormalClosure);
         }
     }
 }

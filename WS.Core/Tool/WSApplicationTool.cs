@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Reflection;
 using WS.Core.Config;
-
+using Newtonsoft.Json;
 namespace WS.Core.Tool;
 
 public static class WSApplicationTool
@@ -62,11 +62,11 @@ public static class WSApplicationTool
         }
     }
 
-    public static void Run<TApplication>(string[] args, string? serverName, string rootConfigName = "root.json") where TApplication : class, IApplication
+    public static void Run<TApplication>(string[] args, string? serverName, string rootConfigName = "app.json")
+        where TApplication : class, IApplication
     {
 
         IServiceCollection services = new ServiceCollection();
-
         IConfiguration config = ConfigTools.LoadConfig(rootConfigName);
         services.Configure<RootConfig>(config, e => config.Bind(e));
         var configTypes = typeof(IApplicationConfiguration).GetSubTypes().ToList();
@@ -86,6 +86,7 @@ public static class WSApplicationTool
             logger.LogCritical("SetCurrent Server Err");
             return;
         }
+        logger.LogInformation($"启动服务器{config_root.Value.Current}");
         IDTools.Init(config_root.Value.Current.Snowflake);
         Context.config = config_root;
 
@@ -100,6 +101,7 @@ public static class WSApplicationTool
 
 
         logger.LogInformation("---配置服务 开始------------------------------");
+        builder.Services.Configure<RootConfig>(config, e => config.Bind(e));
         builder.Services.ConfigApplicationServices(configTypes, provider, logger, type);
         app.ConfigureApplicationServices(builder.Services);
         logger.LogInformation("---配置服务 结束------------------------------");
@@ -116,7 +118,7 @@ public static class WSApplicationTool
         logger.LogInformation("---配置服务 结束------------------------------");
 
         WaitLife(app, logger, web_application, TimeSpan.FromSeconds(config_root.Value.ServerLaunchTime));
-        web_application.Run(config_root.Value.Current.Url);
+        web_application.Run(config_root.Value.Current.LaunchUrl);
     }
 
     private async static void WaitLife<TApplication>(TApplication startup, ILogger logger, WebApplication application, TimeSpan span) where TApplication : IApplication

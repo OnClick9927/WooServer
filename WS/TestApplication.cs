@@ -22,18 +22,22 @@ class TestApplication : IApplication
     {
         services.AddDbContext<TodoDbContext>((builder) =>
         {
-            string dir = $"{Environment.CurrentDirectory}/databases";
+            string dir = $"{Context.CurrentDirectory}/databases";
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             builder.UseSqlite($"Data Source={dir}/_sqlite_{nameof(TodoDbContext)}.db");
         });
     }
     void IApplication.ConfigureApplicationServices(IServiceCollection services)
     {
+
         ConfigDB(services);
     }
     void IApplication.ConfigureApplication(WebApplication web_application)
     {
-
+        web_application.MapGet("/test", () =>
+        {
+            return "hello";
+        });
     }
     void IApplication.OnShutDown()
     {

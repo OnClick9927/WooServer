@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using WS.Core.Config;
 
 namespace WS.Core;
 
@@ -30,4 +29,21 @@ public class ServiceAttribute : Attribute
         Lifetime = lifetime;
         ServerType = serverType;
     }
+}
+
+[Flags]
+public enum ServerType
+{
+    Gate = 2,
+    Game = 4,
+    Timer = 8,
+    Pay = 16,
+
+
+
+
+
+
+
+    All = Gate | Game | Timer | Pay,
 }

@@ -33,14 +33,10 @@ namespace WS.DB
         //}
 
         public DbSet<Todo> Todos { get; set; }
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+ 
+        public Todo GetTodo()
         {
-            base.OnModelCreating(modelBuilder);
-            modelBuilder.ApplyConfigurationsFromAssembly(GetType().Assembly);
-        }
-        public Todo Get()
-        {
-            return Todos.FirstOrDefault();
+            return Todos.FirstOrDefault() ?? new Todo();
         }
     }
 

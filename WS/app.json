@@ -14,7 +14,8 @@
     {
       "Name": "Gate",
       "Type": "Gate",
-      "Url": "http://127.0.0.1:5002",
+      "LaunchUrl": "http://127.0.0.1:5002",
+      "RpcUrl": "http://127.0.0.1:5002",
       "Snowflake": {
         "WorkerId": 2,
         "DataCenterId": 4,
@@ -24,7 +25,8 @@
     {
       "Name": "Game",
       "Type": "Game",
-      "Url": "http://127.0.0.1:5003",
+      "LaunchUrl": "http://127.0.0.1:5003",
+      "RpcUrl": "http://127.0.0.1:5003",
       "snowflake": {
         "WorkerId": 6,
         "DataCenterId": 5,

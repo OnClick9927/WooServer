@@ -1,6 +1,4 @@
-﻿using WS.Core.Config;
-
-namespace WS.Core.HTTP;
+﻿namespace WS.Core.HTTP;
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
 public class RpcControllerAttribute : Attribute
 {

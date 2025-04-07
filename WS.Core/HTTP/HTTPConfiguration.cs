@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Scalar.AspNetCore;
-using WS.Core.Config;
 using WS.Core.Tool;
 
 
@@ -26,7 +25,7 @@ class HTTPConfiguration : IApplicationConfiguration
 
         //HTTPTool.InitRoute(application.Services, application, root.Value.ServerType);
 
-        HTTPTool.CollectRPC();
+        HTTPTool.CollectRPC(logger);
         //application.UseMvc();
         application.UseHttpsRedirection();
         application.UseAuthorization();

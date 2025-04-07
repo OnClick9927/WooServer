@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Net;
 using System.Reflection;
@@ -18,7 +20,13 @@ public static class HTTPTool
         public string? ReasonPhrase { get; set; }
         public T? Result { get; set; }
 
+        public static HttpPostResult<T> Succeed { get; private set; } = new HttpPostResult<T>()
+        {
 
+            Success = true,
+            Code = HttpStatusCode.OK,
+
+        };
         public static HttpPostResult<T> Empty { get; private set; } = new HttpPostResult<T>()
         {
 
@@ -68,22 +76,42 @@ public static class HTTPTool
 
     }
 
-    public static async Task<HttpPostResult<T>> RpcHTTPPost<T>(Type type, string method, Dictionary<string, object>? headers = null)
+    public static async Task<HttpPostResult<T>> RpcPost<T>(Type type, string method, Dictionary<string, object>? headers = null)
     {
-        var serverType = service_type_map[type];
-        var fit = rootCfg.FindServers(serverType);
-        if (fit == null || fit.Count == 0)
+        var fit = FindRpcServers(type);
+        if (fit.Count == 0)
             return HttpPostResult<T>.Empty;
         foreach (var server in fit)
         {
-            var result = await HTTPPost<T>($"{server.Url}/{Rpcmap[type][method]}", headers);
+            var result = await HTTPPost<T>(GetRpcUrl(server, type, method), headers);
             if (result.Success)
                 return result;
         }
         return HttpPostResult<T>.Empty;
     }
+    public static List<ServerConfig> FindRpcServers(Type type)
+    {
+        var serverType = service_type_map[type];
+        var fit = rootCfg.FindServers(serverType);
+        return fit;
+    }
+    public static string GetRpcUrl(ServerConfig server, Type type, string method) => $"{server.RpcUrl}/{Rpcmap[type][method]}";
+    public static async Task<HttpPostResult<T>> RpcBroadcast<T>(Type type, string method, Dictionary<string, object>? headers = null)
+    {
+        var fit = FindRpcServers(type);
+        if (fit == null || fit.Count == 0)
+            return HttpPostResult<T>.Empty;
+        foreach (var server in fit)
+        {
+            var result = await HTTPPost<T>(GetRpcUrl(server, type, method), headers);
+            if (!result.Success)
+                return result;
+        }
+        return HttpPostResult<T>.Succeed;
 
-    internal static void CollectRPC()
+    }
+
+    internal static void CollectRPC(ILogger logger)
     {
         var types = TypeTools.GetTypesWithAttribute(typeof(RpcControllerAttribute), false);
 
@@ -99,7 +127,11 @@ public static class HTTPTool
             var attr = type.GetCustomAttribute<RpcControllerAttribute>();
             var route = type.GetCustomAttribute<RouteAttribute>();
 
-
+            if (route.Template != "[controller]/[action]")
+            {
+                logger.LogError($"RPC ERR-->Type:{type} Attribute:{nameof(RouteAttribute)}'s {nameof(RouteAttribute.Template)} must be->[controller]/[action]");
+                return;
+            }
 
 
 
@@ -108,7 +140,7 @@ public static class HTTPTool
             foreach (var method in methods)
             {
                 string name = method.Name;
-                routeMap[name] = route.Template.Replace("[controller]", name); ;
+                routeMap[name] = $"{type.Name.Replace("Controller", "")}/{name}";
             }
         }
     }

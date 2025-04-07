@@ -1,4 +1,6 @@
-﻿namespace WS.Core.WebSockets;
+﻿using Microsoft.Extensions.Logging;
+
+namespace WS.Core.WebSockets;
 
 public interface IWebSocketBinaryQueue
 {
@@ -58,4 +60,14 @@ class WebSocketTokenCollection : IWebSocketTokenCollection
     {
         tokens.Remove(token);
     }
+}
+
+
+public interface IWebSocketMessageErrHandler
+{
+    bool Handle(WebSocketToken token, int id, int sid, object msg, Exception exception);
+}
+public interface IWebSocketMessageLogLevel
+{
+    LogLevel GetMessageLogLevel(int id, int sid, object msg);
 }

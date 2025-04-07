@@ -3,9 +3,9 @@ using Newtonsoft.Json;
 using System.Net.WebSockets;
 using static WS.Core.HTTP.HTTPTool;
 using WS.DB;
-using WS.Core.Config;
 using WS.Core.HTTP;
 using WS.Core.WebSockets;
+using WS.Core;
 
 namespace WS.Test
 {
@@ -63,7 +63,7 @@ namespace WS.Test
         public static async Task<HttpPostResult<TodoItemDTO>> RPCCreateTodo( int test)
         {
 
-            return await HTTPTool.RpcHTTPPost<TodoItemDTO>(typeof(TestController), nameof(TestController.Test), new Dictionary<string, object> {
+            return await HTTPTool.RpcPost<TodoItemDTO>(typeof(TestController), nameof(TestController.Test), new Dictionary<string, object> {
                 { nameof(test),test}
             });
         }
@@ -110,8 +110,9 @@ namespace WS.Test
         [HttpPost]
         public async Task<IResult> Test( [FromHeader] int test)
         {
+            db.SaveChanges();
             TodoItemDTO todoItemDTO = new TodoItemDTO();
-            var get = db.Get();
+            var get = db.GetTodo();
             todoItemDTO.Name=get.Name;
 
 
