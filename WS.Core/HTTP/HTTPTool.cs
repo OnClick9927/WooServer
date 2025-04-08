@@ -92,7 +92,7 @@ public static class HTTPTool
     public static List<ServerConfig> FindRpcServers(Type type)
     {
         var serverType = service_type_map[type];
-        var fit = rootCfg.FindServers(serverType);
+        var fit = Context.FindServers(serverType);
         return fit;
     }
     public static string GetRpcUrl(ServerConfig server, Type type, string method) => $"{server.RpcUrl}/{Rpcmap[type][method]}";

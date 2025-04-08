@@ -78,17 +78,17 @@ public static class WSApplicationTool
         var config_root = provider.GetRequiredService<IOptionsSnapshot<RootConfig>>();
         LogTools.InitLog(config_root.Value.Log);
         ILogger logger = LogTools.CreateLogger<TApplication>();
+        Context.config = config_root;
 
 
 
-        if (!config_root.Value.SetCurrent(serverName))
+        if (!Context.SetCurrentServer(serverName))
         {
             logger.LogCritical("SetCurrent Server Err");
             return;
         }
-        logger.LogInformation($"启动服务器{config_root.Value.Current}");
-        IDTools.Init(config_root.Value.Current.Snowflake);
-        Context.config = config_root;
+        logger.LogInformation($"启动服务器{Context.CurrentServer}");
+        IDTools.Init(Context.CurrentServer.Snowflake);
 
         var app = provider.GetRequiredService<TApplication>();
 
@@ -97,7 +97,7 @@ public static class WSApplicationTool
         ///////////////////////////////////////////////////////////////
         var builder = WebApplication.CreateBuilder(args);
 
-        ServerType type = config_root.Value.ServerType;
+        ServerType type = Context.ServerType;
 
 
         logger.LogInformation("---配置服务 开始------------------------------");
@@ -118,7 +118,7 @@ public static class WSApplicationTool
         logger.LogInformation("---配置服务 结束------------------------------");
 
         WaitLife(app, logger, web_application, TimeSpan.FromSeconds(config_root.Value.ServerLaunchTime));
-        web_application.Run(config_root.Value.Current.LaunchUrl);
+        web_application.Run(Context.CurrentServer.LaunchUrl);
     }
 
     private async static void WaitLife<TApplication>(TApplication startup, ILogger logger, WebApplication application, TimeSpan span) where TApplication : IApplication
