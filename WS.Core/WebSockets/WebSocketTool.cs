@@ -158,11 +158,11 @@ public class WebSocketTool
 
     }
 
-    public static void BindToken(WebSocketToken token, long userData)
+    public static void BindToken(WebSocketToken token, object userData)
     {
         GetWebSocketTokenCollection().Bind(token, userData);
     }
-    public static WebSocketToken? FindToken(long userData)
+    public static WebSocketToken? FindToken(object userData)
     {
         return GetWebSocketTokenCollection().Find(userData);
     }

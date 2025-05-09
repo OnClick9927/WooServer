@@ -9,7 +9,7 @@ public class WebSocketToken
     public HttpContext context;
     internal WebSocketChannel channel;
     internal DateTime LastTime;
-    public long userData { get; internal set; }
+    public object userData { get; internal set; }
 
     public WebSocketToken(WebSocket socket, HttpContext context)
     {

@@ -27,20 +27,20 @@ interface IWebSocketTokenCollection
     void Refresh(WebSocketToken token, DateTime time);
     void Remove(WebSocketToken token);
 
-    void Bind(WebSocketToken token, long userData);
-    WebSocketToken? Find(long userData);
+    void Bind(WebSocketToken token, object userData);
+    WebSocketToken? Find(object userData);
 }
 
 class WebSocketTokenCollection : IWebSocketTokenCollection
 {
     private List<WebSocketToken> tokens = new List<WebSocketToken>();
 
-    public void Bind(WebSocketToken token, long userData)
+    public void Bind(WebSocketToken token, object userData)
     {
         token.userData = userData;
     }
 
-    public WebSocketToken? Find(long userData)
+    public WebSocketToken? Find(object userData)
     {
         return tokens.FirstOrDefault(x => x.userData == userData);
     }

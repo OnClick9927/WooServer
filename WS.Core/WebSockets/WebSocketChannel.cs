@@ -34,6 +34,8 @@ class WebSocketChannel : ITimeEntityContext
         WebSocketTool.RefreshToken(token);
         entity = TimeTool.Add(this);
         messageQueue = new RecieveMessageQueue();
+
+  
     }
 
     CancellationTokenSource tokenSource = new CancellationTokenSource();

@@ -1,15 +1,17 @@
-﻿namespace WS.Core.WebSockets;
+﻿using System.Threading.Channels;
+
+namespace WS.Core.WebSockets;
 
 class RecieveMessageQueue
 {
-    private class MessageContext
+    struct MessageContext
     {
-        public WebSocketToken? token;
+        public WebSocketToken token;
         public int id;
         public int sid;
-        public object? message;
+        public object message;
 
-        public MessageContext(WebSocketToken? token, int id, int sid, object? message)
+        public MessageContext(WebSocketToken token, int id, int sid, object message)
         {
             this.token = token;
             this.id = id;
@@ -17,48 +19,51 @@ class RecieveMessageQueue
             this.message = message;
         }
     }
-    private Queue<MessageContext> _messages = new Queue<MessageContext>();
-    private enum State
+    private Channel<MessageContext> _channel;
+    private CancellationTokenSource cts;
+    public RecieveMessageQueue()
     {
-        Busy, Free
-    }
-    private State state = State.Free;
-    public void Enqueue(WebSocketToken token, int id, int sid, object msg)
-    {
-        if (_clear) return;
-        MessageContext context = new MessageContext(token, id, sid, msg);
-
-        lock (_messages)
-            _messages.Enqueue(context);
-        if (state == State.Busy) return;
+        cts = new CancellationTokenSource();
+        _channel = Channel.CreateUnbounded<MessageContext>(new UnboundedChannelOptions()
+        {
+            SingleReader = true,
+            SingleWriter = true,
+            AllowSynchronousContinuations = true,
+        });
         HandleMessage();
     }
-    private bool _clear;
+    public async void Enqueue(WebSocketToken token, int id, int sid, object msg)
+    {
+        if (cts.IsCancellationRequested) return;
+
+        MessageContext context = new MessageContext(token, id, sid, msg);
+        await _channel.Writer.WriteAsync(context);
+    }
     private async void HandleMessage()
     {
-        if (_clear) return;
-        MessageContext context = null;
-        lock (_messages)
+        while (true)
         {
-            var count = _messages.Count;
-            state = count == 0 ? State.Free : State.Busy;
-            if (state == State.Free) return;
-            context = _messages.Dequeue();
+            if (cts.IsCancellationRequested) break;
+
+           await _channel.Reader.WaitToReadAsync();
+            //await _task;
+            if (cts.IsCancellationRequested) break;
+            if (_channel.Reader.TryRead(out MessageContext context))
+            {
+                Task task = WebSocketTool.ExecuteMsg(context.token, context.id, context.sid, context.message);
+                if (task != null)
+                    await task;
+            }
         }
 
-        Task task = WebSocketTool.ExecuteMsg(context.token, context.id, context.sid, context.message);
-        if (task != null)
-            await task;
-        HandleMessage();
+
+
     }
 
     internal void Clear()
     {
-        _clear = true;
-        lock (_messages)
-        {
-            _messages.Clear();
-        }
+        cts.Cancel();
     }
+
 }
 
