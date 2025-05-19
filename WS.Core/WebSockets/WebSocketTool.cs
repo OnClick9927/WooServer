@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Runtime.InteropServices.JavaScript;
 using WS.Core.Tool;
 
 namespace WS.Core.WebSockets;
@@ -9,7 +11,9 @@ public class WebSocketTool
     private static Dictionary<Type, Delegate> msg_handlers;
     private static ILogger logger = LogTools.CreateLogger<WebSocketTool>();
     static IWebSocketMessageErrHandler messageErrHandler;
+    static IWebSocketDisConnectHandler disConnectHandler;
     static IWebSocketMessageLogLevel msgLev;
+
     internal static IWebSocketMsgPacker CreateMsagPacker()
     {
         return Context.Services.GetRequiredService<IWebSocketMsgPacker>();
@@ -27,7 +31,17 @@ public class WebSocketTool
         return queue;
     }
     static IWebSocketTokenCollection GetWebSocketTokenCollection() => Context.Services.GetRequiredService<IWebSocketTokenCollection>();
-    internal static LogLevel GetMessageLogLevel(int id, int sid, object msg) => msgLev.GetMessageLogLevel(id, sid, msg);
+
+    internal static void LogMsg(bool rec, int id, int sid, object msg)
+    {
+        var lev = msgLev.GetMessageLogLevel(id, sid, msg);
+        if (rec)
+            logger.Log(lev, $"Rec  {id}-{sid}-{msg.GetType()}\t{msg}");
+        else
+            logger.Log(lev, $"Send {id}-{sid}-{msg.GetType()}\t{msg}");
+
+    }
+
     internal static async Task ExecuteMsg(WebSocketToken token, int id, int sid, object msg)
     {
         if (token.socket.State == System.Net.WebSockets.WebSocketState.Closed)
@@ -39,12 +53,20 @@ public class WebSocketTool
             var msgType = msg.GetType();
             if (msg_handlers.TryGetValue(msgType, out var del))
             {
-                var lev = GetMessageLogLevel(id, sid, msg);
-                logger.Log(lev, $"Execute Msg {id}:sid:{sid}msg:{msgType}\t{msg}");
+                LogMsg(true, id, sid,msg);
                 var _task = Task.Run(async () =>
                 {
+
                     Task task = del.DynamicInvoke(token, id, sid, msg) as Task;
                     await task;
+                    var _type = task.GetType();
+                    var p = _type.GetProperty(nameof(Task<object>.Result));
+                    if (p.PropertyType.FullName != "System.Threading.Tasks.VoidTaskResult")
+                    {
+                        var obj = p.GetValue(task);
+                        await token.Send(id, sid, obj);
+                    }
+
                 });
                 while (!_task.IsCompleted)
                 {
@@ -63,11 +85,10 @@ public class WebSocketTool
                         throw _task.Exception;
                     }
                 }
-
             }
             else
             {
-                logger.LogCritical($"Not Find Handler id{id}:sid:{sid}msg:{msgType}\n{msg}");
+                logger.LogCritical($"Not Find Handler {id}-{sid}\n{msgType}\t{msg}");
             }
         }
         //return Task.CompletedTask;
@@ -84,7 +105,8 @@ public class WebSocketTool
                      .Where(x =>
                      {
                          var ps = x.GetParameters();
-                         return x.ReturnType == typeof(Task) && ps.Length == 4
+                         return ((x.ReturnType.IsGenericType && x.ReturnType.GetGenericTypeDefinition() == typeof(Task<>)) ||
+                         x.ReturnType == typeof(Task)) && ps.Length == 4
                                    && ps[0].ParameterType == typeof(WebSocketToken)
                                    && ps[1].ParameterType == typeof(int)
                                    && ps[2].ParameterType == typeof(int);
@@ -103,6 +125,7 @@ public class WebSocketTool
                .ToDictionary(x => x.msgType, y => y.del);
             messageErrHandler = services.GetService(err_handler) as IWebSocketMessageErrHandler;
             msgLev = services.GetService(msgLevHandler) as IWebSocketMessageLogLevel;
+            disConnectHandler = services.GetService(disconHandler) as IWebSocketDisConnectHandler;
 
             return true;
         }
@@ -112,7 +135,7 @@ public class WebSocketTool
         }
 
     }
-    static Type tokenCollectionType, packerType, queueType_Binary_Type, queueType_Text_Type, err_handler, msgLevHandler;
+    static Type tokenCollectionType, packerType, queueType_Binary_Type, queueType_Text_Type, err_handler, msgLevHandler, disconHandler;
     internal static bool ConfigService(IServiceCollection services)
     {
         tokenCollectionType = typeof(IWebSocketTokenCollection).GetSubTypes().Single();
@@ -121,7 +144,7 @@ public class WebSocketTool
         queueType_Text_Type = typeof(IWebSocketTextQueue).GetSubTypes().Single();
         err_handler = typeof(IWebSocketMessageErrHandler).GetSubTypes().Single();
         msgLevHandler = typeof(IWebSocketMessageLogLevel).GetSubTypes().Single();
-
+        disconHandler = typeof(IWebSocketDisConnectHandler).GetSubTypes().Single();
 
         services.AddSingleton(typeof(IWebSocketTokenCollection), tokenCollectionType);
         services.AddTransient(typeof(IWebSocketMsgPacker), packerType);
@@ -139,12 +162,21 @@ public class WebSocketTool
             tokenCollectionType == null ||
             packerType == null ||
             queueType_Binary_Type == null ||
-            queueType_Text_Type == null);
+            queueType_Text_Type == null || disconHandler == null);
 
 
     }
-    internal static void RefreshToken(WebSocketToken token)
+    static string ToString(ConnectionInfo info)
     {
+        return $"{info.RemoteIpAddress}:{info.RemotePort}";
+    }
+    internal static void RefreshToken(WebSocketToken token, bool _new)
+    {
+        if (_new)
+        {
+            logger.LogInformation($"Token Connect {ToString(token.context.Connection)}");
+
+        }
         token.LastTime = DateTime.Now;
         GetWebSocketTokenCollection().Refresh(token, DateTime.Now);
     }
@@ -154,15 +186,19 @@ public class WebSocketTool
     }
     internal static void RemoveToken(WebSocketToken token)
     {
+        logger.LogInformation($"Token Close {ToString(token.context.Connection)} {token.userData}");
+        disConnectHandler?.OnDisConnect(token);
         GetWebSocketTokenCollection().Remove(token);
 
     }
 
-    public static void BindToken(WebSocketToken token, object userData)
+    public static void BindToken(WebSocketToken token, string userData)
     {
+        logger.LogInformation($"Token Bind {ToString(token.context.Connection)} {userData}");
+
         GetWebSocketTokenCollection().Bind(token, userData);
     }
-    public static WebSocketToken? FindToken(object userData)
+    public static WebSocketToken? FindToken(string userData)
     {
         return GetWebSocketTokenCollection().Find(userData);
     }

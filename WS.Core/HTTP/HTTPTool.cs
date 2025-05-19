@@ -10,7 +10,7 @@ using WS.Core.Tool;
 
 namespace WS.Core.HTTP;
 
-public static class HTTPTool
+public static partial class HTTPTool
 {
     public class HttpPostResult<T>
     {
@@ -50,7 +50,10 @@ public static class HTTPTool
             var content = new StringContent("", Encoding.UTF8, System.Net.Mime.MediaTypeNames.Application.Json);
             if (headers != null)
                 foreach (var head in headers)
-                    content.Headers.Add(head.Key, JsonConvert.SerializeObject(head.Value));
+                    if (head.Value.GetType() == typeof(string))
+                        content.Headers.Add(head.Key, (string)head.Value);
+                    else
+                        content.Headers.Add(head.Key, JsonConvert.SerializeObject(head.Value));
             try
             {
                 var resp = await client.PostAsync(url, content);
@@ -89,12 +92,23 @@ public static class HTTPTool
         }
         return HttpPostResult<T>.Empty;
     }
+    public static async Task<HttpPostResult<T>> RpcPost<T>(string url, Type type, string method, Dictionary<string, object>? headers = null)
+    {
+        var server = Context.FindServerByUrl(url);
+        if (server == null)
+            return HttpPostResult<T>.Empty;
+        var result = await HTTPPost<T>(GetRpcUrl(server, type, method), headers);
+        if (result.Success)
+            return result;
+        return HttpPostResult<T>.Empty;
+    }
     public static List<ServerConfig> FindRpcServers(Type type)
     {
         var serverType = service_type_map[type];
         var fit = Context.FindServers(serverType);
         return fit;
     }
+
     public static string GetRpcUrl(ServerConfig server, Type type, string method) => $"{server.RpcUrl}/{Rpcmap[type][method]}";
     public static async Task<HttpPostResult<T>> RpcBroadcast<T>(Type type, string method, Dictionary<string, object>? headers = null)
     {
@@ -145,4 +159,48 @@ public static class HTTPTool
         }
     }
 
+}
+
+partial class HTTPTool
+{
+    public class Entity
+    {
+        public string key { get; set; }
+        public string serverName { get; set; }
+
+        public long time { get; set; }
+        public Action<Entity> call;
+    }
+    private static List<Entity> contexts = new List<Entity>();
+    public static void RegisterTimer(string serverName, string key, long time, Action<Entity> action)
+    {
+        if (contexts.Any(x => x.serverName == serverName && x.key == key && x.time == time)) return;
+        var context = new Entity() { key = key, serverName = serverName, time = time, call = action };
+
+        contexts.Add(context);
+    }
+    public static void RemoveTimer(string serverName, string key)
+    {
+        contexts.RemoveAll(x => x.serverName == serverName && x.key == key);
+    }
+    public static void RemoveTimer(string serverName)
+    {
+        contexts.RemoveAll(x => x.serverName == serverName);
+    }
+
+
+
+   public static void Update()
+    {
+        var now = TimeTool.GetTimeStamp_Now();
+        var find = contexts.FindAll(x => x.time <= now);
+        if (find != null && find.Count > 0)
+        {
+            foreach (var context in find)
+            {
+                context.call?.Invoke(context);
+            }
+            contexts.RemoveAll(x => find.Contains(x));
+        }
+    }
 }

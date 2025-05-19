@@ -1,12 +1,10 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Reflection;
 using WS.Core.Config;
-using Newtonsoft.Json;
 namespace WS.Core.Tool;
 
 public static class WSApplicationTool
@@ -102,11 +100,14 @@ public static class WSApplicationTool
 
         logger.LogInformation("---配置服务 开始------------------------------");
         builder.Services.Configure<RootConfig>(config, e => config.Bind(e));
+        builder.Services.AddHostedService<GracefulShutdownService>();
+        builder.Services.AddSingleton(app);
+
         builder.Services.ConfigApplicationServices(configTypes, provider, logger, type);
         app.ConfigureApplicationServices(builder.Services);
         logger.LogInformation("---配置服务 结束------------------------------");
         var web_application = builder.Build();
-        Context.Config(web_application);
+        Context.Config(app, web_application);
 
 
 
@@ -116,19 +117,11 @@ public static class WSApplicationTool
         web_application.ConfigApplication(configTypes, provider, logger, type);
         app.ConfigureApplication(web_application);
         logger.LogInformation("---配置服务 结束------------------------------");
-
-        WaitLife(app, logger, web_application, TimeSpan.FromSeconds(config_root.Value.ServerLaunchTime));
         web_application.Run(Context.CurrentServer.LaunchUrl);
     }
 
-    private async static void WaitLife<TApplication>(TApplication startup, ILogger logger, WebApplication application, TimeSpan span) where TApplication : IApplication
-    {
-        await Task.Delay(span);
-        logger.LogInformation("---进入APP------------------------------");
-        startup.OnEnter();
-        await application.WaitForShutdownAsync();
-        logger.LogInformation("---ShutDown------------------------------");
-        startup.OnShutDown();
-    }
+
 
 }
+
+

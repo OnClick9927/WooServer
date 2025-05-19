@@ -8,7 +8,7 @@ public interface IApplication
     void ConfigureApplication(WebApplication web_application);
     void ConfigureApplicationServices(IServiceCollection services);
     void OnEnter();
-    void OnShutDown();
+    Task OnShutDown();
 }
 public interface IApplicationConfiguration
 {

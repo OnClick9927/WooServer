@@ -31,11 +31,11 @@ class WebSocketChannel : ITimeEntityContext
         queue_binary = WebSocketTool.CreateNewBinaryQueue(size);
         text_queue = WebSocketTool.CreateNewTextQueue(size);
         Packer = WebSocketTool.CreateMsagPacker();
-        WebSocketTool.RefreshToken(token);
+        WebSocketTool.RefreshToken(token, true);
         entity = TimeTool.Add(this);
         messageQueue = new RecieveMessageQueue();
 
-  
+
     }
 
     CancellationTokenSource tokenSource = new CancellationTokenSource();
@@ -75,7 +75,7 @@ class WebSocketChannel : ITimeEntityContext
             var receiveResult = awaiter.GetResult();
             if (!receiveResult.CloseStatus.HasValue)
             {
-                WebSocketTool.RefreshToken(token);
+                WebSocketTool.RefreshToken(token, false);
                 OnRec(receiveResult.MessageType,
                     receiveResult.EndOfMessage, receiveResult.Count);
                 await BeginRec();
@@ -119,9 +119,7 @@ class WebSocketChannel : ITimeEntityContext
     }
     public async Task Send(int id, int sid, object msg)
     {
-
-        var lev = WebSocketTool.GetMessageLogLevel(id, sid, msg);
-        logger.Log(lev, $"Send Msg {id}:sid:{sid}msg:{msg.GetType()}\t{msg}");
+        WebSocketTool.LogMsg(false, id, sid, msg);
         var bytes = Packer.Encode(id, sid, msg);
         await Send(bytes, WebSocketMessageType.Binary, true);
         Packer.Release(bytes);
@@ -133,7 +131,7 @@ class WebSocketChannel : ITimeEntityContext
         tokenSource.Cancel();
         entity.InvokeComplete();
         WebSocketTool.RemoveToken(token);
-        if (token.socket.State != WebSocketState.Aborted)
+        if (token.socket.State != WebSocketState.Aborted && token.socket.State != WebSocketState.Closed)
             await token.socket.CloseAsync(status, statusDescription, CancellationToken.None);
         else
             token.socket.Dispose();

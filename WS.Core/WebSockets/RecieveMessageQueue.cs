@@ -39,7 +39,7 @@ class RecieveMessageQueue
         MessageContext context = new MessageContext(token, id, sid, msg);
         await _channel.Writer.WriteAsync(context);
     }
-    private async void HandleMessage()
+    private async Task HandleMessage()
     {
         while (true)
         {
@@ -62,6 +62,7 @@ class RecieveMessageQueue
 
     internal void Clear()
     {
+       
         cts.Cancel();
     }
 

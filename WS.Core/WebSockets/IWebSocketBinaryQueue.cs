@@ -27,20 +27,20 @@ interface IWebSocketTokenCollection
     void Refresh(WebSocketToken token, DateTime time);
     void Remove(WebSocketToken token);
 
-    void Bind(WebSocketToken token, object userData);
-    WebSocketToken? Find(object userData);
+    void Bind(WebSocketToken token, string userData);
+    WebSocketToken? Find(string userData);
 }
 
 class WebSocketTokenCollection : IWebSocketTokenCollection
 {
     private List<WebSocketToken> tokens = new List<WebSocketToken>();
 
-    public void Bind(WebSocketToken token, object userData)
+    public void Bind(WebSocketToken token, string userData)
     {
         token.userData = userData;
     }
 
-    public WebSocketToken? Find(object userData)
+    public WebSocketToken? Find(string userData)
     {
         return tokens.FirstOrDefault(x => x.userData == userData);
     }
@@ -70,4 +70,8 @@ public interface IWebSocketMessageErrHandler
 public interface IWebSocketMessageLogLevel
 {
     LogLevel GetMessageLogLevel(int id, int sid, object msg);
+}
+public interface IWebSocketDisConnectHandler
+{
+    void OnDisConnect(WebSocketToken token);
 }

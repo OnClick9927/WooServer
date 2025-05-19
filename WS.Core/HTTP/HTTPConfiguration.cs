@@ -1,10 +1,12 @@
-﻿using IGeekFan.AspNetCore.Knife4jUI;
+﻿using Coravel;
+using IGeekFan.AspNetCore.Knife4jUI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Scalar.AspNetCore;
 using WS.Core.Tool;
+using static System.Net.Mime.MediaTypeNames;
 
 
 namespace WS.Core.HTTP;
@@ -15,6 +17,12 @@ class HTTPConfiguration : IApplicationConfiguration
     private ILogger logger = LogTools.CreateLogger<HTTPConfiguration>();
     void IApplicationConfiguration.Configure(WebApplication application)
     {
+
+        application.Services.UseScheduler(scheduler =>
+        {
+            scheduler.Schedule(HTTPTool.Update).EverySecond();
+        });
+
         //////////////////////////////////////////////////////////////////////////
 
         application.UseDefaultFiles();
@@ -47,6 +55,8 @@ class HTTPConfiguration : IApplicationConfiguration
 
     void IApplicationConfiguration.ConfigureServices(IServiceCollection services)
     {
+        services.AddScheduler();
+
         //services.AddMvc();
         services.AddControllers();
         //services.AddAuthentication();
