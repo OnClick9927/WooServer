@@ -10,15 +10,16 @@ namespace WS.Core.Tool;
 public static class WSApplicationTool
 {
 
-    private static void AddAttributeServices(this IServiceCollection services, ILogger logger, ServerType serverType)
+    private static void AddAttributeServices(this IServiceCollection services, ILogger logger, int serverType)
     {
         TypeTools.GetTypesWithAttribute(typeof(ServiceAttribute), false).ToList().ForEach(type =>
         {
 
 
-            var attr = type.GetCustomAttribute<ServiceAttribute>();
-            if (!attr.ServerType.HasFlag(serverType)) return;
-            logger.LogInformation($"AddServiceByAttr---> {type}");
+            var attr = type.GetCustomAttributes<ServiceAttribute>()
+                .FirstOrDefault(x => x.FitAllServer || x.ServerType == serverType);
+            if (attr == null) return;
+            logger.LogInformation($"ServiceAttribute {attr.Lifetime}--->{type}");
             switch (attr.Lifetime)
             {
                 case ServiceLifetime.Singleton:
@@ -35,32 +36,35 @@ public static class WSApplicationTool
     }
 
 
-    private static void ConfigApplicationServices(this IServiceCollection services, IEnumerable<Type> serviceTypes, IServiceProvider provider, ILogger logger, ServerType serverType)
+    private static void ConfigApplicationServices(this IServiceCollection services, IEnumerable<Type> serviceTypes, IServiceProvider provider, ILogger logger, int serverType, IApplication application)
     {
         services.AddAttributeServices(logger, serverType);
         foreach (var type in serviceTypes)
         {
+            if (!application.Fit(serverType, type)) continue;
+
             var cfg = provider.GetRequiredService(type) as IApplicationConfiguration;
-            if (!cfg.Fit().HasFlag(serverType)) continue;
+            //if (!cfg.Fit(serverType)) continue;
             logger.LogInformation($"---> {type}");
             cfg.ConfigureServices(services);
         }
 
     }
 
-    private static void ConfigApplication(this WebApplication web_application, IEnumerable<Type> configTypes, IServiceProvider provider, ILogger logger, ServerType serverType)
+    private static void ConfigApplication(this WebApplication web_application, IEnumerable<Type> configTypes,
+        IServiceProvider provider, ILogger logger, int serverType, IApplication application)
     {
         foreach (var type in configTypes)
         {
+            if (!application.Fit(serverType, type)) continue;
             var cfg = provider.GetRequiredService(type) as IApplicationConfiguration;
-            if (!cfg.Fit().HasFlag(serverType)) continue;
 
             logger.LogInformation($"---> {type}");
             cfg.Configure(web_application);
         }
     }
 
-    public static void Run<TApplication>(string[] args, string? serverName, string rootConfigName = "app.json")
+    public static void Run<TApplication>(string[] args, string? serverCfg, string rootConfigName = "app.json")
         where TApplication : class, IApplication
     {
 
@@ -76,26 +80,37 @@ public static class WSApplicationTool
         var config_root = provider.GetRequiredService<IOptionsSnapshot<RootConfig>>();
         LogTools.InitLog(config_root.Value.Log);
         ILogger logger = LogTools.CreateLogger<TApplication>();
-        Context.config = config_root;
-
-
-
-        if (!Context.SetCurrentServer(serverName))
+        //Context.config = config_root;
+        var app = provider.GetRequiredService<TApplication>();
+        try
         {
-            logger.LogCritical("SetCurrent Server Err");
+            ServerConfig server_config = ConfigTools.LoadConfig<ServerConfig>(new ServerConfig(), serverCfg);
+            bool succ = app.LegalServerConfig(server_config);
+            if (!succ)
+            {
+                logger.LogCritical($"服务器配置错误{server_config}");
+
+                return;
+            }
+            Context.SetCurrentServer(config_root, server_config);
+        }
+        catch (Exception ex)
+        {
+
+            logger.LogCritical($"SetCurrent Server Err {ex}");
             return;
         }
+
         logger.LogInformation($"启动服务器{Context.CurrentServer}");
         IDTools.Init(Context.CurrentServer.Snowflake);
 
-        var app = provider.GetRequiredService<TApplication>();
 
 
 
         ///////////////////////////////////////////////////////////////
         var builder = WebApplication.CreateBuilder(args);
 
-        ServerType type = Context.ServerType;
+        int type = Context.ServerType;
 
 
         logger.LogInformation("---配置服务 开始------------------------------");
@@ -103,7 +118,7 @@ public static class WSApplicationTool
         builder.Services.AddHostedService<GracefulShutdownService>();
         builder.Services.AddSingleton(app);
 
-        builder.Services.ConfigApplicationServices(configTypes, provider, logger, type);
+        builder.Services.ConfigApplicationServices(configTypes, provider, logger, type, app);
         app.ConfigureApplicationServices(builder.Services);
         logger.LogInformation("---配置服务 结束------------------------------");
         var web_application = builder.Build();
@@ -114,7 +129,7 @@ public static class WSApplicationTool
 
 
         logger.LogInformation("---配置服务 开始------------------------------");
-        web_application.ConfigApplication(configTypes, provider, logger, type);
+        web_application.ConfigApplication(configTypes, provider, logger, type, app);
         app.ConfigureApplication(web_application);
         logger.LogInformation("---配置服务 结束------------------------------");
         web_application.Run(Context.CurrentServer.LaunchUrl);

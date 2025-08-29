@@ -2,22 +2,19 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using WS.Core.Config;
 using WS.Core.Tool;
 
 namespace WS.Core.WebSockets;
 
-
 class WebSocketConfiguration : IApplicationConfiguration
 {
     private ILogger logger = LogTools.CreateLogger<WebSocketConfiguration>();
-    private readonly IOptionsSnapshot<RootConfig> root;
+    //private readonly IOptionsSnapshot<RootConfig> root;
 
-    public WebSocketConfiguration(IOptionsSnapshot<RootConfig> root)
-    {
-        this.root = root;
-    }
+    //public WebSocketConfiguration()
+    //{
+    //    //this.root = root;
+    //}
     private async Task Accept(HttpContext context, RequestDelegate next)
     {
         if (context.Request.Path == "/ws")
@@ -25,7 +22,7 @@ class WebSocketConfiguration : IApplicationConfiguration
             if (context.WebSockets.IsWebSocketRequest)
             {
                 var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-                var context_ws = new WebSocketChannel(new WebSocketToken(webSocket, context), root.Value.WebSocket.QueueSize, root.Value.WebSocket.AutoDisconnectTime);
+                var context_ws = new WebSocketChannel(new WebSocketToken(webSocket, context), Context.CurrentServer.WebSocket.QueueSize, Context.CurrentServer.WebSocket.AutoDisconnectTime);
 
                 try
                 {
@@ -54,19 +51,22 @@ class WebSocketConfiguration : IApplicationConfiguration
     }
     void IApplicationConfiguration.Configure(WebApplication application)
     {
+        if (Context.CurrentServer.WebSocket == null) return;
+        logger.LogInformation("Create WS Handlers");
         application.UseWebSockets(new WebSocketOptions()
         {
-            KeepAliveInterval = TimeSpan.FromDays(5)
+            KeepAliveInterval = TimeSpan.FromDays(5),
+          
         });
         application.Use(Accept);
         WebSocketTool.CreateMessageHandlers(application.Services);
     }
     void IApplicationConfiguration.ConfigureServices(IServiceCollection services)
     {
+        if (Context.CurrentServer.WebSocket == null) return;
         WebSocketTool.ConfigService(services);
     }
-    ServerType IApplicationConfiguration.Fit()
-    {
-        return ServerType.Game;
-    }
+    //bool IApplicationConfiguration.Fit(int serverType) => ServerTypeHelper.Game == serverType;
+
+
 }

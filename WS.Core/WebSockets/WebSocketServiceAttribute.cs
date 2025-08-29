@@ -3,9 +3,11 @@
 namespace WS.Core.WebSockets;
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public class WebSocketHandlerAttribute : ServiceAttribute
+public class WebSocketServiceAttribute : ServiceAttribute
 {
-    public WebSocketHandlerAttribute() : base(ServiceLifetime.Singleton, ServerType.Game)
+    public WebSocketServiceAttribute(int serverType) : base(ServiceLifetime.Singleton, serverType)
     {
     }
 }
+
+

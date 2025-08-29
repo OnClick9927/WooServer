@@ -16,34 +16,26 @@ public static class Context
     public static string CurrentDirectory => System.Environment.CurrentDirectory;
 
     public static ServerConfig CurrentServer { get; private set; }
-    public static ServerType ServerType => CurrentServer.Type;
+    public static string ServerName => CurrentServer.Name;
+
+    public static int ServerType => CurrentServer.Type;
     public static int ServerChannel => CurrentServer.Channel;
+    public static string? ClientUrl => CurrentServer.ClientUrl;
+    public static bool PublicService => CurrentServer.PublicService;
+    public static bool IsCenter => CurrentServer.IsCenter;
 
-    public static List<ServerConfig> FindServers(ServerType type)
-    {
-        RootConfig cfg = config.Value;
 
-        return cfg.Servers.Where(x => x.Type == type && x.Channel == ServerChannel).ToList();
-    }
-    public static ServerConfig? FindServerByUrl(string url)
+    //public static bool Https { get; private set; }
+
+    public static string CenterServer {  get; private set; }
+
+    public static void SetCurrentServer(IOptionsSnapshot<RootConfig> rootcfg, ServerConfig config)
     {
-        RootConfig cfg = config.Value;
-        return cfg.Servers.FirstOrDefault(x => x.RpcUrl == url);
-    }
-    public static ServerConfig? FindServerByName(string name)
-    {
-        RootConfig cfg = config.Value;
-        return cfg.Servers.FirstOrDefault(x => x.Name == name);
-    }
-    public static bool SetCurrentServer(string? name)
-    {
-        RootConfig cfg = config.Value;
-        if (string.IsNullOrEmpty(name))
-            name = cfg.ServerName;
-        CurrentServer = cfg.Servers.FirstOrDefault(s => s.Name == name);
-        if (CurrentServer == null)
-            CurrentServer = cfg.Servers.FirstOrDefault();
-        return CurrentServer != null;
+        CurrentServer = config;
+        RootConfig root = rootcfg.Value;
+        CenterServer = rootcfg.Value.CenterServer;
+
+
     }
 
 
@@ -74,9 +66,9 @@ public static class Context
     }
 
 
-    public static IOptionsSnapshot<RootConfig> config;
+    //public static IOptionsSnapshot<RootConfig> config;
     private static WebApplication webApplication;
-    public static IApplication app { get;private set; }
+    public static IApplication app { get; private set; }
 
     public static IServiceProvider Services => webApplication.Services;
     public static IWebHostEnvironment Environment => webApplication.Environment;
@@ -101,9 +93,12 @@ public static class Context
 
     public static IEnumerable<T?> GetServicesOfType<T>(this IServiceProvider provider) where T : class
     {
-        return typeof(T).GetSubTypes()
+        var list= typeof(T).GetSubTypes()
             .Where(x => !x.IsAbstract)
-            .Select(x => provider.GetRequiredService(x) as T);
+            .Select(x => provider.GetService(x) as T)
+            .Where(x => x != null);
+
+        return list;
     }
 
 }

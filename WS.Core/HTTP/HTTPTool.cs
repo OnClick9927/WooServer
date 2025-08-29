@@ -1,15 +1,13 @@
-﻿using Microsoft.AspNetCore.Hosting.Server;
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Net;
 using System.Reflection;
 using System.Text;
-using WS.Core.Config;
 using WS.Core.Tool;
 
 namespace WS.Core.HTTP;
-
 public static partial class HTTPTool
 {
     public class HttpPostResult<T>
@@ -36,9 +34,8 @@ public static partial class HTTPTool
         };
     }
 
-    private static RootConfig rootCfg => Context.config.Value;
 
-    private static Dictionary<Type, ServerType> service_type_map = new Dictionary<Type, ServerType>();
+    private static Dictionary<Type, int> service_type_map = new Dictionary<Type, int>();
     static Dictionary<Type, Dictionary<string, string>> Rpcmap = new Dictionary<Type, Dictionary<string, string>>();
 
     public static async Task<HttpPostResult<T>> HTTPPost<T>(string url, Dictionary<string, object>? headers = null)
@@ -79,54 +76,56 @@ public static partial class HTTPTool
 
     }
 
-    public static async Task<HttpPostResult<T>> RpcPost<T>(Type type, string method, Dictionary<string, object>? headers = null)
+    public static async Task<HttpPostResult<T>> RpcPost<T>(MethodInfo info, Dictionary<string, object>? headers = null)
     {
-        var fit = FindRpcServers(type);
+        if (context == null) return HttpPostResult<T>.Empty;
+        Type type = info.DeclaringType;
+        //string method = info.Name;
+        var serverType = service_type_map[type];
+        var fit = context.FindServerNames(serverType);
         if (fit.Count == 0)
             return HttpPostResult<T>.Empty;
         foreach (var server in fit)
         {
-            var result = await HTTPPost<T>(GetRpcUrl(server, type, method), headers);
+            var result = await RpcPost<T>(server, info, headers); ;
             if (result.Success)
                 return result;
         }
         return HttpPostResult<T>.Empty;
     }
-    public static async Task<HttpPostResult<T>> RpcPost<T>(string url, Type type, string method, Dictionary<string, object>? headers = null)
+    public static async Task<HttpPostResult<T>> RpcPost<T>(string serverName, MethodInfo info, Dictionary<string, object>? headers = null)
     {
-        var server = Context.FindServerByUrl(url);
-        if (server == null)
+        Type type = info.DeclaringType;
+        string method = info.Name;
+        if (context == null || !context.Exist(serverName))
             return HttpPostResult<T>.Empty;
-        var result = await HTTPPost<T>(GetRpcUrl(server, type, method), headers);
+        var result = await HTTPPost<T>(GetRpcUrl(serverName, type, method), headers);
         if (result.Success)
             return result;
         return HttpPostResult<T>.Empty;
     }
-    public static List<ServerConfig> FindRpcServers(Type type)
+    public static async Task<HttpPostResult<T>> RpcPostByUrl<T>(string url, MethodInfo info, Dictionary<string, object>? headers = null)
     {
-        var serverType = service_type_map[type];
-        var fit = Context.FindServers(serverType);
-        return fit;
+        Type type = info.DeclaringType;
+        string method = info.Name;
+        var result = await HTTPPost<T>(GetRpcUrlByBase(url, type, method), headers);
+        if (result.Success)
+            return result;
+        return HttpPostResult<T>.Empty;
     }
 
-    public static string GetRpcUrl(ServerConfig server, Type type, string method) => $"{server.RpcUrl}/{Rpcmap[type][method]}";
-    public static async Task<HttpPostResult<T>> RpcBroadcast<T>(Type type, string method, Dictionary<string, object>? headers = null)
-    {
-        var fit = FindRpcServers(type);
-        if (fit == null || fit.Count == 0)
-            return HttpPostResult<T>.Empty;
-        foreach (var server in fit)
-        {
-            var result = await HTTPPost<T>(GetRpcUrl(server, type, method), headers);
-            if (!result.Success)
-                return result;
-        }
-        return HttpPostResult<T>.Succeed;
+    public static string GetRpcUrlByBase(string url, Type type, string method) => $"{url}/{Rpcmap[type][method]}";
 
-    }
+    public static string GetRpcUrl(string serverName, Type type, string method) => GetRpcUrlByBase(context.GetHttpRpcUrl(serverName), type, method);
 
-    internal static void CollectRPC(ILogger logger)
+    private static IHttpRPCContext? context;
+
+
+    internal static void CollectRPC(ILogger logger, IServiceProvider services)
     {
+
+        context = services.GetServicesOfType<IHttpRPCContext>().FirstOrDefault();
+
         var types = TypeTools.GetTypesWithAttribute(typeof(RpcControllerAttribute), false);
 
         foreach (var type in types)
@@ -159,48 +158,66 @@ public static partial class HTTPTool
         }
     }
 
-}
 
+    //public static string GetClientIP(this HttpContext context)
+    //{
+    //    // 1. 尝试从X-Forwarded-For获取
+    //    if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
+    //        return forwardedFor.FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim();
+
+    //    var remoteIp = context.Connection.RemoteIpAddress;
+    //    if (remoteIp.IsIPv4MappedToIPv6)
+    //    {
+    //        return remoteIp.MapToIPv4().ToString();
+    //    }
+    //    return remoteIp?.ToString();
+    //}
+
+}
 partial class HTTPTool
 {
-    public class Entity
-    {
-        public string key { get; set; }
-        public string serverName { get; set; }
 
-        public long time { get; set; }
-        public Action<Entity> call;
-    }
-    private static List<Entity> contexts = new List<Entity>();
-    public static void RegisterTimer(string serverName, string key, long time, Action<Entity> action)
-    {
-        if (contexts.Any(x => x.serverName == serverName && x.key == key && x.time == time)) return;
-        var context = new Entity() { key = key, serverName = serverName, time = time, call = action };
+    private static List<TimerRecord> recorders = new List<TimerRecord>();
 
-        contexts.Add(context);
-    }
-    public static void RemoveTimer(string serverName, string key)
+
+
+
+    public static void ReadRecords()
     {
-        contexts.RemoveAll(x => x.serverName == serverName && x.key == key);
+        var rs = context?.ReadRecords();
+        recorders.AddRange(rs);
+        context?.OnRecordChange(recorders);
     }
+    public static void RegisterTimer(string serverName, string key, long time)
+    {
+        if (recorders.Any(x => x.serverName == serverName && x.key == key && x.time == time)) return;
+        var record = new TimerRecord() { key = key, serverName = serverName, time = time };
+        recorders.Add(record);
+        context?.OnRecordChange(recorders);
+    }
+
     public static void RemoveTimer(string serverName)
     {
-        contexts.RemoveAll(x => x.serverName == serverName);
+        recorders.RemoveAll(x => x.serverName == serverName);
+        context?.OnRecordChange(recorders);
+
     }
 
 
-
-   public static void Update()
+    public static void Update()
     {
+        context?.RegisterServer();
         var now = TimeTool.GetTimeStamp_Now();
-        var find = contexts.FindAll(x => x.time <= now);
+        var find = recorders.FindAll(x => x.time <= now);
         if (find != null && find.Count > 0)
         {
-            foreach (var context in find)
+            foreach (var record in find)
             {
-                context.call?.Invoke(context);
+                context?.CallRecord(record);
             }
-            contexts.RemoveAll(x => find.Contains(x));
+            recorders.RemoveAll(x => find.Contains(x));
+            context?.OnRecordChange(recorders);
+
         }
     }
 }

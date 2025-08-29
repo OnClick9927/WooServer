@@ -2,35 +2,10 @@
 
 public static class TimeTool
 {
-    public interface ITimeEntityContext
-    {
-        void Invoke();
-    }
+
 
     private static List<TimeEntity> entities = new List<TimeEntity>();
-    public class TimeEntity
-    {
-        private ITimeEntityContext context;
-        internal void Invoke()
-        {
-            context.Invoke();
-        }
-        internal bool completed { get; private set; }
-        public void InvokeComplete()
-        {
-            completed = true;
-        }
-        internal static TimeEntity Create(ITimeEntityContext context)
-        {
-            var entity = new TimeEntity()
-            {
-                context = context,
-                completed = false,
-            };
-            return entity;
-        }
-    }
-    public static TimeEntity Add(ITimeEntityContext context)
+    internal static TimeEntity Add(ITimeEntityContext context)
     {
         var entity = TimeEntity.Create(context);
         entities.Add(entity);
@@ -53,9 +28,19 @@ public static class TimeTool
         long timestamp = dateTimeOffset.ToUnixTimeSeconds();
         return timestamp;
     }
+    public static DateTime Now()
+    {
+        return DateTime.UtcNow;
+    }
+    public static long GetTimeStamp_Now_Millisecond()
+    {
+        DateTimeOffset dateTimeOffset = new DateTimeOffset(Now());
+        long timeStamp = dateTimeOffset.ToUnixTimeMilliseconds();
+        return timeStamp;
+    }
     public static long GetTimeStamp_Now()
     {
-        DateTimeOffset dateTimeOffset = new DateTimeOffset(DateTime.UtcNow);
+        DateTimeOffset dateTimeOffset = new DateTimeOffset(Now());
         long timeStamp = dateTimeOffset.ToUnixTimeSeconds();
         return timeStamp;
     }
@@ -72,4 +57,29 @@ public static class TimeTool
         return dateTime;
     }
 }
-
+interface ITimeEntityContext
+{
+    void Invoke();
+}
+class TimeEntity
+{
+    private ITimeEntityContext context;
+    internal void Invoke()
+    {
+        context.Invoke();
+    }
+    internal bool completed { get; private set; }
+    public void InvokeComplete()
+    {
+        completed = true;
+    }
+    internal static TimeEntity Create(ITimeEntityContext context)
+    {
+        var entity = new TimeEntity()
+        {
+            context = context,
+            completed = false,
+        };
+        return entity;
+    }
+}

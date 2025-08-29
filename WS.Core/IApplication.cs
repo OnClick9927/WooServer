@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using WS.Core.Config;
 
 namespace WS.Core;
 
@@ -9,11 +10,14 @@ public interface IApplication
     void ConfigureApplicationServices(IServiceCollection services);
     void OnEnter();
     Task OnShutDown();
+
+    bool Fit(int serverType, Type type);
+    bool LegalServerConfig(ServerConfig server_config);
 }
 public interface IApplicationConfiguration
 {
 
-    ServerType Fit();
+    //bool Fit(int serverType);
     void ConfigureServices(IServiceCollection services);
 
     void Configure(WebApplication application);
@@ -23,27 +27,19 @@ public interface IApplicationConfiguration
 public class ServiceAttribute : Attribute
 {
     public readonly ServiceLifetime Lifetime;
-    public readonly ServerType ServerType;
-    public ServiceAttribute(ServiceLifetime lifetime, ServerType serverType)
+    public readonly int ServerType;
+    public const int AllServer = -1;
+    public bool FitAllServer => ServerType == AllServer;
+    public ServiceAttribute(ServiceLifetime lifetime, int serverType = AllServer)
     {
         Lifetime = lifetime;
         ServerType = serverType;
     }
 }
 
-[Flags]
-public enum ServerType
-{
-    Gate = 2,
-    Game = 4,
-    Timer = 8,
-    Pay = 16,
 
 
 
 
 
 
-
-    All = Gate | Game | Timer | Pay,
-}

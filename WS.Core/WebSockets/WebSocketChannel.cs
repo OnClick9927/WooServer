@@ -19,7 +19,7 @@ class WebSocketChannel : ITimeEntityContext
     private static ILogger logger = LogTools.CreateLogger<WebSocketChannel>();
 
     private RecieveMessageQueue messageQueue;
-    private TimeTool.TimeEntity entity;
+    private TimeEntity entity;
     private double AutoDisconnectTime;
 
     public WebSocketChannel(WebSocketToken token, int size, double AutoDisconnectTime)
@@ -132,7 +132,16 @@ class WebSocketChannel : ITimeEntityContext
         entity.InvokeComplete();
         WebSocketTool.RemoveToken(token);
         if (token.socket.State != WebSocketState.Aborted && token.socket.State != WebSocketState.Closed)
-            await token.socket.CloseAsync(status, statusDescription, CancellationToken.None);
+            try
+            {
+
+                await token.socket.CloseAsync(status, statusDescription, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+
+                //throw;
+            }
         else
             token.socket.Dispose();
     }

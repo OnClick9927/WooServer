@@ -23,6 +23,5 @@ class TimeSchedulerConfiguration : IApplicationConfiguration
     {
         services.AddScheduler();
     }
-    ServerType IApplicationConfiguration.Fit() => ServerType.All;
 }
 

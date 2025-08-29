@@ -2,32 +2,6 @@
 using System.Reflection;
 
 namespace WS.Core.Tool;
-public static class MiscTools
-{
-    public static T Set<T, TValue>(this T obj, Expression<Func<T, TValue>> expression, TValue value)
-    {
-        var memberExpression = expression.Body as MemberExpression;
-        if (memberExpression == null)
-            throw new ArgumentException("表达式必须指向属性或字段");
-
-        var member = memberExpression.Member;
-        if (member is PropertyInfo property)
-        {
-            property.SetValue(obj, value);
-        }
-        else if (member is FieldInfo field)
-        {
-            field.SetValue(obj, value);
-        }
-        else
-        {
-            throw new ArgumentException("表达式必须指向属性或字段");
-        }
-
-        return obj;
-    }
-
-}
 public static class TypeTools
 {
     public static Delegate ToDelegate(this MethodInfo method, object target)
@@ -136,7 +110,7 @@ public static class TypeTools
             {
 
             }
-     
+
         });
     }
     public static IEnumerable<Type> GetTypes()
@@ -163,5 +137,8 @@ public static class TypeTools
 
     }
 
+    public static MethodInfo Method<T>(Expression<Action<T>> expr) =>
+    (expr.Body as MethodCallExpression)?.Method
+    ?? throw new ArgumentException("表达式必须是方法调用");
 
 }

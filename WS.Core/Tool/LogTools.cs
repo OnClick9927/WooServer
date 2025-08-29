@@ -24,8 +24,8 @@ public static class LogTools
                e.FileAccessMode = LogFileAccessMode.KeepOpenAndAutoFlush;
            }));
     }
-    public static ILogger CreateLogger<T>() => factory.CreateLogger<T>();
-    public static ILogger CreateLogger(Type type) => factory.CreateLogger(type);
+    public static ILogger CreateLogger<T>() => CreateLogger(typeof(T));
+    public static ILogger CreateLogger(Type type) => factory.CreateLogger(type.Name);
 
     public static bool AlertLog(this ILogger logger, bool condition, string? message, LogLevel level, params object?[] args)
     {

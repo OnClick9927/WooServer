@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Runtime.InteropServices.JavaScript;
 using WS.Core.Tool;
 
 namespace WS.Core.WebSockets;
@@ -53,7 +52,7 @@ public class WebSocketTool
             var msgType = msg.GetType();
             if (msg_handlers.TryGetValue(msgType, out var del))
             {
-                LogMsg(true, id, sid,msg);
+                LogMsg(true, id, sid, msg);
                 var _task = Task.Run(async () =>
                 {
 
@@ -97,7 +96,7 @@ public class WebSocketTool
     {
         try
         {
-            msg_handlers = TypeTools.GetTypesWithAttribute(typeof(WebSocketHandlerAttribute), false)
+            msg_handlers = TypeTools.GetTypesWithAttribute(typeof(WebSocketServiceAttribute), false)
                 .Select(x => services.GetService(x))
                .SelectMany(ins =>
                {
